@@ -1,0 +1,67 @@
+[package]
+name = "rsm"
+version = "0.1.0"
+edition = "2021"
+publish = false
+links = "os_linux"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+include = ["src/*/*.rs","src/*.rs","src/common/*.c",]
+
+[build-dependencies]
+cc = "1.0"
+
+[dependencies]
+tiny_http = {path = "lib/tiny-http"}
+bytes = {path = "lib/bytes"}
+libc = {path = "lib/libc"}
+cfg-if = {path="lib/cfg-if"}
+serde = {path = "lib/serde/serde",features = ["derive"]}
+num_cpus = {path = "lib/num_cpus"}
+itoa = {path = "lib/itoa"}
+nom = {path = "lib/nom"}
+memchr = {path="lib/memchr"}
+fnv = {path="lib/rust-fnv"}
+serde_json = {path="lib/json"}
+mio = {path="lib/mio",features=["net","os-poll","os-ext"]}
+sha2 = {path="lib/hashes/sha2"}
+rand = {path="lib/rand",features=["getrandom"]}
+digest = {path="lib/traits/digest"}
+aes = {path = "lib/block-ciphers/aes"}
+cpufeatures = {path = "lib/crypto_utils/cpufeatures"}
+hex-literal = {path = "lib/crypto_utils/hex-literal"}
+libdeflater = {path = "lib/libdeflater"}
+cipher = {path = "lib/traits/cipher"}
+time = {path ="lib/time",features=["local-offset","serde","serde-well-known"]}
+#mimalloc = { path = "lib/mimalloc_rust", default-features = false }
+cc = "~1.0"
+
+[target.i686-pc-windows-msvc.dependencies]
+windows-sys = {path ="lib/windows-rs/crates/libs/sys",features=["Win32_Networking_WinSock", "Win32_Foundation", "Win32_System_IO","Win32_NetworkManagement","Win32_NetworkManagement_IpHelper","Win32_System_Registry","Win32_System_Threading"]}
+winapi = {path = "lib/winapi-rs"}
+wintun= {path = "lib/wintun"}
+
+[target.x86_64-pc-windows-msvc.dependencies]
+windows-sys = {path ="lib/windows-rs/crates/libs/sys",features=["Win32_Networking_WinSock", "Win32_Foundation", "Win32_System_IO","Win32_NetworkManagement","Win32_NetworkManagement_IpHelper","Win32_System_Registry","Win32_System_Threading"]}
+winapi = {path = "lib/winapi-rs"}
+wintun= {path = "lib/wintun"}
+
+[target.i686-pc-windows-gnu.dependencies]
+windows-sys = {path ="lib/windows-rs/crates/libs/sys",features=["Win32_Networking_WinSock", "Win32_Foundation", "Win32_System_IO","Win32_NetworkManagement","Win32_NetworkManagement_IpHelper","Win32_System_Registry","Win32_System_Threading"]}
+winapi = {path = "lib/winapi-rs"}
+wintun= {path = "lib/wintun"}
+
+[target.x86_64-pc-windows-gnu.dependencies]
+windows-sys = {path ="lib/windows-rs/crates/libs/sys",features=["Win32_Networking_WinSock", "Win32_Foundation", "Win32_System_IO","Win32_NetworkManagement","Win32_NetworkManagement_IpHelper","Win32_System_Registry","Win32_System_Threading"]}
+winapi = {path = "lib/winapi-rs"}
+wintun= {path = "lib/wintun"}
+
+[profile.dev]
+opt-level=2
+debug = true
+
+[profile.release]
+opt-level=3
+debug=false
+debug-assertions = false
+panic= "abort"
+

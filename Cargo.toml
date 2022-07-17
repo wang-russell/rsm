@@ -1,0 +1,55 @@
+[package]
+name = "rsm"
+version = "0.2.0"
+edition = "2021"
+authors = ["Russell Wang <wang_russell@hotmail.com>"]
+license = "Apache-2.0"
+description = "RSM:A Realtime Software Middleware framework"
+links = "os_linux"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+include = ["src/*/*.rs","src/*.rs","src/common/*.c",]
+
+[build-dependencies]
+cc = "1.0"
+
+[dependencies]
+tiny_http = {version="0.11"}
+libc = {version="0.2.126"}
+cfg-if = {version="1.0.0"}
+serde = {version = "1.0.136",features = ["derive"]}
+serde_json = {version = "1.0.80"}
+mio = {version = "0.8.2",features=["net","os-poll","os-ext"]}
+sha2 = {version = "0.10.1"}
+rand = {version = "0.8.5",features=["getrandom"]}
+digest = {version = "0.10.3"}
+aes = {version = "0.8.1"}
+libdeflater = {version = "0.10.0"}
+time = {version="0.3.11",features=["local-offset","serde","serde-well-known"]}
+#mimalloc = { path = "lib/mimalloc_rust", default-features = false }
+cc = "~1.0"
+
+[target.i686-pc-windows-msvc.dependencies]
+windows-sys = {version = "0.36",features=["Win32_Networking_WinSock", "Win32_Foundation", "Win32_System_IO","Win32_NetworkManagement","Win32_NetworkManagement_IpHelper","Win32_System_Registry","Win32_System_Threading"]}
+
+
+[target.x86_64-pc-windows-msvc.dependencies]
+windows-sys = {version = "0.36",features=["Win32_Networking_WinSock", "Win32_Foundation", "Win32_System_IO","Win32_NetworkManagement","Win32_NetworkManagement_IpHelper","Win32_System_Registry","Win32_System_Threading"]}
+
+
+[target.i686-pc-windows-gnu.dependencies]
+windows-sys = {version = "0.36",features=["Win32_Networking_WinSock", "Win32_Foundation", "Win32_System_IO","Win32_NetworkManagement","Win32_NetworkManagement_IpHelper","Win32_System_Registry","Win32_System_Threading"]}
+
+
+[target.x86_64-pc-windows-gnu.dependencies]
+windows-sys = {version = "0.36",features=["Win32_Networking_WinSock", "Win32_Foundation", "Win32_System_IO","Win32_NetworkManagement","Win32_NetworkManagement_IpHelper","Win32_System_Registry","Win32_System_Threading"]}
+
+[profile.dev]
+opt-level=2
+debug = true
+
+[profile.release]
+opt-level=3
+debug=false
+debug-assertions = false
+panic= "abort"
+
