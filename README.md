@@ -2,7 +2,7 @@ RSM: Rust Realtime System Middleware
 =====
 Introduction
 ===
-Realtime system is defined as a system that can response the external request in certain deterministic time. To acheive this goal in generic computer systems, we must adopt a realtime shcedule policy on the software system, and keep from some time-consuming operation such as synchronous I/O operation, memory garbage collection and lock.
+Realtime system is defined as a system that can response the external request in certain deterministic time. To achieve this goal in generic computer systems, we must adopt a realtime shcedule policy on the software system, and keep from some time-consuming operation such as synchronous I/O operation, memory garbage collection and lock.
 
 RSM is a lightweight realtime middleware implementation written in rust, support event-driven, message oriented lock-free programming principle. in RSM, every software module is a **component**, and each component can be instantiated to several tasks, and each task mapped to a dedicated **OS thread** and has its own message queue.
 
@@ -91,8 +91,8 @@ xlog service
 ---
 xlog service is based on client/server architecture, the client side simple send log message to the server which responsible for log file manipulation, keeping from write disk under the application's context, which is very important for the realtime application.
 
-    *let log = rsm::new_xlog(module_name:&str)->xlog::xlogger_t;*
-    *log.Errorf(postion, err, logDesc);*
+*let log = rsm::new_xlog(module_name:&str)->xlog::xlogger_t;*
+*log.Errorf(postion, err, logDesc);*
 
 Other thread safe algorithm and data structure
 ---
@@ -103,3 +103,5 @@ Other thread safe algorithm and data structure
 + ethernet packet parser
 + Ip routing table
 + several other network function and object wrapper
+
+if you have any suggestion, please send email to me: <wang_russell@hotmail.com>
