@@ -19,7 +19,7 @@ use crate::common::{self,rsm_time_t};
 use super::*;
 
 
-const _DEBUG: bool = true;
+const _DEBUG: bool = false;
 
 /*初始化Log，每个模块使用Log前要初始化一个实例，用此实例输出日志,入参为自己的模块名称，自身IP和端口，LogService的IP和端口
 支持LogClient和Service在不同的节点中部署*/

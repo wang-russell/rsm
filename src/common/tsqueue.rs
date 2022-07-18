@@ -12,7 +12,6 @@ use std::sync::Condvar;
 
 pub struct TsDequeue<T> {
     inner: Mutex<VecDeque<T>>,
-    //lock: Mutex<i32>,
     cond:Condvar,
     has_data:Arc<Mutex<bool>>,
 }

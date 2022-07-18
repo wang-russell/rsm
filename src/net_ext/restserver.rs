@@ -55,7 +55,7 @@ pub fn get_url_path(url: &str) -> Result<String, errcode::RESULT> {
     }
 }
 
-//根据错误码，返回对应的HTTP代码
+//map between errcode and HTTP CODE
 pub fn error_to_http_code(ec: errcode::RESULT) -> http::StatusCode {
     let code = match ec {
         errcode::RESULT_SUCCESS => errcode::HTTP_SUCCESS,

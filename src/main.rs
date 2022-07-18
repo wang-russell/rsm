@@ -1,11 +1,18 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
+#![allow(dead_code)]
 
+///this is a sample application for RSM(realtime system middleware)
+/// 1. init rsm, include oam/log service
+/// 2. register application module
+/// 3. start RSM, RSM will schedule the registered application module
 
 use std::thread;
 use std::time::Duration;
 use std::env;
+use rust_rsm::common::errcode;
+
 use crate::rsm::config::{self,rsm_init_cfg_t,rsm_cfg_t};
 use crate::rsm::{rsm_timer};
 use std::net::{SocketAddr,IpAddr};
@@ -33,9 +40,24 @@ impl rsm::Runnable for sample_app_t {
     fn on_timer(&mut self,cid:&rsm::rsm_component_t,timer_id:rsm::rsm_timer_id_t,timer_data:usize) {
         println!("Recv Timer Event,timer_id={},data={},time={}\n",
             timer_id,timer_data,common::format_datetime(&std::time::SystemTime::now()));
+        static mut data:u64=2048;
+        let msg= rsm::rsm_message_t::new::<u64>(10015,unsafe {&data}).unwrap();
+        if cid.get_inst_id()==1 {
+            let dst=rsm::rsm_component_t::new(cid.get_cid(),1,2);
+            let ret = rsm::send_asyn_msg(&dst, msg);
+            if ret!=errcode::RESULT_SUCCESS {
+                println!("Send message failed,ret={}",ret);
+            }
+        }
+        unsafe { data+=2 };
     }
+
     fn on_message(&mut self,cid:&rsm::rsm_component_t,msg_id:rsm::rsm_message_id_t,msg:&rsm::rsm_message_t) {
-        println!("recv msg,msg_id={},content={:?}\n",msg_id,msg);
+
+        let self_cid=rsm::get_self_cid();
+        let sender= rsm::get_sender_cid();
+
+        println!("recv msg,msg_id={},content={:?},sender={:?},self={:?}\n",msg_id,msg,sender,self_cid);
         if let Some(log) = &mut self.log {
             log.Errorf("sampleapp", 0, &format!("self_id={},recv message id={},v={:?}",cid,msg_id,msg));
         }
@@ -57,7 +79,7 @@ fn main() {
     let conf = parse_agrs();
     
     println!("Staring RSM framework,config={:?}", conf);
-    println!("Copyright by wangjun, {}","2022.7");
+    println!("Copyright by russell Wang , {}","2022.7");
     
     rsm::rsm_init(&conf.cfg);
     registerApp(1);

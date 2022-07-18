@@ -1,8 +1,8 @@
-//对VecDequeue的线程安全性封装
+
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
-
+// thread safe Dequeue
 use std::sync::{Mutex,Arc};
 use std::sync::Condvar;
 use crate::common::{spin_lock::spin_lock_t,errcode};

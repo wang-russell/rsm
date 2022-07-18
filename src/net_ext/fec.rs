@@ -2,9 +2,6 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 
-///FEC模块，实现多个报文计算形成一个FEC报文；同时提供多个报文(含FEC)恢复成一个原始报文
-/// 设计假定报文都是有编号的，一组报文从起始编号开始N个报文编码形成一个FEC报文
-/// 发端必须提供全部原始报文才能够编码形成一个FEC报文，收端在N个原始报文和1个FEC报文中只要收齐N个报文即结束
 use super::*;
 use crate::common::{self,errcode};
 use std::mem;

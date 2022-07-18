@@ -124,6 +124,29 @@ pub(crate) fn get_self_cid()->Option<rsm_component_t> {
     None
 }
 
+fn get_task_inst(tid:&rsm_component_t)->Option<&mut task_t> {
+  let tm = match unsafe {&mut gTaskRegistry} {
+    None=>return None,
+    Some(t)=>t,
+  };
+  return tm.get_mut(&tid);
+}
+
+pub(crate) fn get_sender_cid()->Option<rsm_component_t> {
+    let self_cid = match get_self_cid() {
+        None=>return None,
+        Some(c)=>c,
+    };
+    match get_task_inst(&self_cid) {
+        None=>return None,
+        Some(t)=>return match t.get_sender_cid() {
+            None=>None,
+            Some(c)=>Some(c.clone()),
+        },
+    }
+}
+
+
 pub(crate) fn power_on_ack() {
 
 }

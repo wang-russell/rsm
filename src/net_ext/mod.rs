@@ -147,7 +147,7 @@ pub mod ServicePorts {
     pub const TP_PORT_LDAPS: u16 = 636; //
     pub const TP_PORT_NETCONF_SSH: u16 = 830; //
     pub const TP_PORT_NETCONF_HTTPS: u16 = 832; //
-    pub const TP_PORT_TWAMP: u16 = 862; //双向检测协议
+    pub const TP_PORT_TWAMP: u16 = 862; 
     pub const TP_PORT_FTPS: u16 = 990; // Ftp Over TLS/SSL
     pub const TP_PORT_OPEN_VPN: u16 = 1194; //
     pub const TP_PORT_L2TP: u16 = 1701; //

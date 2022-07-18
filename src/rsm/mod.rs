@@ -65,6 +65,9 @@ impl rsm_component_t {
             inst_id,
         }
     }
+    pub fn new_zero()->Self {
+        return Self { cid: 0, node_id: 0, inst_id: 0 }
+    }
     pub fn get_cid(&self)->rsm_component_id_t {
         self.cid
     }
@@ -109,6 +112,7 @@ impl component_attrs_t {
             need_init_ack:need_init_ack,        
         }
     }
+    
 }
 
 ///rsm message associated definition
@@ -129,6 +133,7 @@ pub struct rsm_message_t {
     msg_id:u32,
     timer_id:rsm_timer_id_t,
     timer_data:usize,
+    sender:rsm_component_t,
     msg_body:String,
 }
 impl rsm_message_t {
@@ -138,20 +143,30 @@ impl rsm_message_t {
             Ok(s)=>s,
             Err(_)=>return None,
         };
+        let sender = match get_self_cid() {
+            None=>rsm_component_t::new_zero(),
+            Some(c)=>c,
+        };
         let msg=Self {
             msg_id:msg_id,
             timer_id:0,
             timer_data:0,
+            sender:sender,
             msg_body:msg_body,
         };
         return Some(msg);
     }
 
     pub(crate) fn new_timer_msg(timer_id:rsm_timer_id_t,timer_data:usize)->Option<rsm_message_t> {
+        let sender = match get_self_cid() {
+            None=>rsm_component_t::new_zero(),
+            Some(c)=>c,
+        };
         let msg=Self {
             msg_id:RSM_MSG_ID_TIMER,
             timer_id:timer_id,
             timer_data:timer_data,
+            sender:sender,
             msg_body:String::default(),
         };
         return Some(msg);
@@ -200,13 +215,19 @@ pub fn get_self_cid()->Option<rsm_component_t>{
     return rsm_sched::get_self_cid();
 }
 
+pub fn get_sender_cid()->Option<rsm_component_t>{
+    return rsm_sched::get_sender_cid()
+}
+
 pub fn power_on_ack() {
     return rsm_sched::power_on_ack();
 }
-
+///send asyn message
 pub fn send_asyn_msg(dst:&rsm_component_t,msg:rsm_message_t)->errcode::RESULT {
     return rsm_sched::send_asyn_msg(dst, msg);
 }
+
+///send high priority asyn message
 pub fn send_asyn_priority_msg(dst:&rsm_component_t,msg:rsm_message_t)->errcode::RESULT {
     return rsm_sched::send_asyn_priority_msg(dst, msg);
 }

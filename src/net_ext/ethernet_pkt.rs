@@ -8,15 +8,15 @@ use std::fmt;
 use crate::common::errcode;
 
 
-//以太网报文处理对象
+///ethernet packet parse result
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct ethernet_packet_info_t {
-    l3_offset: u16, //三层报文头所在偏移量
-    l4_offset: u16, //四层报文头的偏移量
+    l3_offset: u16, //l3 header offset
+    l4_offset: u16, //l4 header offset
     total_len:u16,
     pub dst_mac: mac_addr_t,
     pub src_mac: mac_addr_t,
-    pub vlan_layers: u8, //0表示没有vlan，1-普通vlan，2-QinQ
+    pub vlan_layers: u8, //0 no vlan header,1-vlan，2-QinQ
     pub vlans: [u16; 2],
     pub ether_type: u16,
     pub mpls_label: u32,
@@ -29,11 +29,11 @@ pub struct ethernet_packet_info_t {
     pub src_ip: IpAddr,
     pub dst_ip: IpAddr,
     pub ip_proto: u8,
-    pub tp_src: u16, //传输层源端口
-    pub tp_dst: u16, //传输层目的端口
+    pub tp_src: u16, //transport layer source port
+    pub tp_dst: u16, //transport layer destination port
 }
 
-//存放一个报文的信息
+
 impl ethernet_packet_info_t {
     pub fn new_zero() -> ethernet_packet_info_t {
         let info:ethernet_packet_info_t=unsafe { std::mem::zeroed::<ethernet_packet_info_t>() };

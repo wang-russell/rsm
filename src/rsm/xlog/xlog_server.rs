@@ -199,7 +199,7 @@ impl log_service_t {
 				Err(_)=>continue,
 				Ok((l,a))=>(l,a),
 			};
-			println!("log server recv message from {},len={},msg = {}",addr,len,String::from_utf8_lossy(&recv_buf[0..len]));
+			//println!("log server recv message from {},len={},msg = {}",addr,len,String::from_utf8_lossy(&recv_buf[0..len]));
 			self.logPackets+=1;
 			self.LogBytes+=len as u64;
 		let logStru = match serde_json::from_slice::<InnerLogMsg>(&recv_buf[0..len]) {
@@ -282,7 +282,7 @@ fn persistentLog(&mut self,msgStru:&InnerLogMsg, m:&log_client_t, formated_msg:&
 
 	self.write_to_file(formated_msg.as_bytes());
 	self.unSyncedMsg+=1;
-	println!("[log server]write to disk,seq={},unsynced={},msg_len={}",self.logSeq,self.unSyncedMsg,formated_msg.len());
+	//println!("[log server]write to disk,seq={},unsynced={},msg_len={}",self.logSeq,self.unSyncedMsg,formated_msg.len());
 	self.flushLogFile();
 	self.lastWriteTime = common::get_datetime_from_std(&time::SystemTime::now());
 	return errcode::RESULT_SUCCESS

@@ -7,7 +7,6 @@
 use super::*;
 use common::{errcode,atomicqueue::AtomicDequeue};
 use common::sched;
-use std::boxed::Box;
 
 #[derive(Default,Clone,Serialize)]
 pub(crate) struct task_stats_t {
@@ -28,6 +27,7 @@ pub(crate) struct task_t{
     recv_q:Option<AtomicDequeue<rsm_message_t>>,
     priority:E_RSM_TASK_PRIORITY,
     stats:task_stats_t,
+    sender:Option<rsm_component_t>,
     terminated:bool,
     task_obj:&'static mut dyn Runnable,
 }
@@ -39,7 +39,8 @@ impl task_t {
             os_tid:0,
             recv_q:Some(AtomicDequeue::new(q_len)),
             priority:prio,
-            stats:task_stats_t::default(),      
+            stats:task_stats_t::default(),
+            sender:None,   
             terminated:false,
             task_obj:task_obj,
         }
@@ -52,6 +53,7 @@ impl task_t {
 
     pub(crate)  fn send_asyn_msg(&mut self,msg:rsm_message_t)->errcode::RESULT {
         if let Some(q)=&mut self.recv_q {
+            self.sender = Some(msg.sender.clone());
             let res = q.push_back(msg);
             if res==errcode::RESULT_SUCCESS {
                 self.stats.recv_msg+=1;
@@ -69,6 +71,7 @@ impl task_t {
     ///send one high priority message to specific component
     pub(crate) fn send_asyn_priority_msg(&mut self,msg:rsm_message_t)->errcode::RESULT {
          if let Some(q)=&mut self.recv_q {
+            self.sender = Some(msg.sender.clone());
             let res =  q.push_front(msg);
             if res==errcode::RESULT_SUCCESS {
                 q.notify();
@@ -156,7 +159,12 @@ impl task_t {
         }
         return stats
     }
-
+    pub fn get_sender_cid(&self)->Option<rsm_component_t> {
+        match &self.sender {
+            None=>return None,
+            Some(s)=>Some(s.clone()),
+        }
+    }
     pub fn clear_task_stats(&mut self) {
         self.stats = task_stats_t::default();
     }

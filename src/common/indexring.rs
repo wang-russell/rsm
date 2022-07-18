@@ -1,5 +1,3 @@
-//提供一个有序、有界的环，每个元素都有唯一的序号，按序号进行存取
-//主要场景：可靠传输的报文发送队列，确认、重传和查重
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]

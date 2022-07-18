@@ -57,12 +57,11 @@ int tuntap_setup(int fd, unsigned char *name, int mode, int packet_info) {
 }
 
 
-//设置Socket接收缓冲区大小
+
 int setSocketRecvBuf(int fd,int bufsize) {
 	return setsockopt(fd,SOL_SOCKET,SO_RCVBUF,&bufsize,sizeof(bufsize));
 }
 
-//设置Socket发送缓冲区大小
 int setSocketSendBuf(int fd,int bufsize) {
 	return setsockopt(fd,SOL_SOCKET,SO_SNDBUF,&bufsize,sizeof(bufsize));
 }

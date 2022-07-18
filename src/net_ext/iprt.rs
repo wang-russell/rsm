@@ -2,22 +2,20 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 
-///IP路由表实现，支持最长匹配，同时支持IPv4和v6路由
-/// 路由结果包括优先级、路由来源，以及用户自定义的路由结果，比如nexthop、Segment Routing SID-List，由用户自己定义
+///IP route table implementation
 use super::*;
 use std::net::IpAddr;
 use crate::common::{errcode,tsmap::TsHashMap};
 use super::ipnetwork::IpNetwork;
 
-///Route Source的定义，可以扩展
-pub const ROUTE_SRC_STATIC:u8=0; //静态路由
-pub const ROUTE_SRC_CONTROLLER:u8=1;//控制器下发的路由
-pub const ROUTE_SRC_OSPF:u8=0;
-pub const ROUTE_SRC_BGP:u8=0;
-pub const ROUTE_SRC_ISIS:u8=0;
-pub const ROUTE_SRC_OTHER_IGP:u8=0;
+///Route Source, can be extend to any value
+pub const ROUTE_SRC_STATIC:u8=0; //static route
+pub const ROUTE_SRC_CONTROLLER:u8=1;//route entry from sdn controller
+pub const ROUTE_SRC_OSPF:u8=2;
+pub const ROUTE_SRC_BGP:u8=3;
+pub const ROUTE_SRC_ISIS:u8=4;
+pub const ROUTE_SRC_OTHER_IGP:u8=5;
 
-///iprt.rs，IP路由表算法对象，提供路由表管理、查找
 /// 
 #[derive(Clone,Hash,PartialEq,Eq)]
 pub struct ip_route_key_t {
@@ -141,7 +139,6 @@ where T: Clone+Eq {
 }
 
 
-///路由表条目按IPv6最大掩码长度进行组织
 const MAX_ROUTE_PREFIX_LEN:usize = IPV6_ADDR_LEN*8;
 const IPV4_ROUTE_PREFIX_LEN:usize = IPV4_ADDR_LEN*8;
 
@@ -186,7 +183,6 @@ impl <T> ip_route_table_t<T>
         }
     }
 
-    ///删除一条路由条目,priority是优先级，数值越大表示优先级越高
     pub fn delete_ip_route(&mut self,vrf:i32,prefix:&IpAddr,mask_len:u8,priority:u16,route_src:u16,user_result:&T)->errcode::RESULT {
         if !IpNetwork::is_valid_ipmask(prefix,mask_len) {
             return errcode::ERROR_INVALID_PARAM
@@ -207,7 +203,6 @@ impl <T> ip_route_table_t<T>
        
     }
 
-    ///查找路由条目,输入的是vrf+ip地址，返回一组路由结果
     pub fn lookup_ip_route(&self,vrf:i32,dst_ip:&IpAddr)->Option<&ip_route_result_set_t<T>> {
         let prefix_len = if dst_ip.is_ipv6() {MAX_ROUTE_PREFIX_LEN} else {IPV4_ROUTE_PREFIX_LEN};
 
@@ -224,7 +219,6 @@ impl <T> ip_route_table_t<T>
         None
     }
 
-        ///查找路由条目,输入的是vrf+ip地址，返回一个路由结果
         pub fn lookup_ip_one_route(&self,vrf:i32,dst_ip:&IpAddr)->Option<ip_route_result_t<T>> {
             let prefix_len = if dst_ip.is_ipv6() {MAX_ROUTE_PREFIX_LEN} else {IPV4_ROUTE_PREFIX_LEN};
     

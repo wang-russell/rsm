@@ -213,7 +213,7 @@ pub(crate) fn RegisterOamModule(urls:&[String], callback:OamReqCallBack)->errcod
 	return inst.register_oam_module(urls, callback)
 }
 
-const help_str:&str = "Show|Add|Del|Set Subject [:param_name=param_value][,:param_name=param_value]*\n Subject = Component | Task | Timer | Lock";
+const help_str:&str = "curl http://127.0.0.1:12000/rsm/help | oam | component | task, and other application defined URL";
 /*构建一个OAM帮助信息*/
 fn getOamHelp(_subject:String)->oam_cmd_resp_t {
 	let tResp = oam_cmd_resp_t{RetCode: errcode::RESULT_SUCCESS,

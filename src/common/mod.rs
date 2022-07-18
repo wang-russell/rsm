@@ -5,9 +5,6 @@
 
 use time;
 use std::time::{self as std_time, SystemTime};
-//use std::fmt;
-use serde::{Deserialize,Deserializer, Serialize,Serializer};
-use serde::de::{self,Visitor,Error};
 
 pub mod errcode;
 pub mod tsidallocator;
@@ -22,43 +19,18 @@ pub mod sched;
 pub mod bitmap;
 
 pub type rsm_time_t = time::OffsetDateTime;
-/*
-impl rsm_time_t {
-    pub fn new(systime:std_time::SystemTime)->Self {
-        let usec = match systime.duration_since(std_time::UNIX_EPOCH) {
-            Ok(v)=>v.as_micros() as u64,
-            Err(_)=>0,
-        };
-        return Self(usec)
-    }
-    
-}
-impl ToString for rsm_time_t {
-    fn to_string(&self)->String {
-        return format_datetime_golang(&get_time_from_usec(self.0))
-    }
-}
-impl Serialize for rsm_time_t {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> 
-    where
-    S: Serializer,{
-       self.to_string().serialize(serializer)      
-    }
-}
-*/
-
 
 pub const UNIX_EPOCH_STRING:&str = "1970-1-1 00:00:00.000";
 #[inline(always)]
 pub fn get_now_usec64() -> u64 {
-    match std_time::SystemTime::UNIX_EPOCH.elapsed() {
+    match SystemTime::UNIX_EPOCH.elapsed() {
         Err(_) => 0,
         Ok(d) => d.as_micros() as u64,
     }
 }
 #[inline(always)]
-pub fn get_time_from_usec(usec: u64) -> std_time::SystemTime {
-    match std_time::SystemTime::UNIX_EPOCH.checked_add(std_time::Duration::from_micros(usec)) {
+pub fn get_time_from_usec(usec: u64) -> SystemTime {
+    match SystemTime::UNIX_EPOCH.checked_add(std_time::Duration::from_micros(usec)) {
         None => std_time::SystemTime::UNIX_EPOCH,
         Some(t) => t,
     }

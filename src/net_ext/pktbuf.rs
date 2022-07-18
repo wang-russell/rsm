@@ -11,7 +11,7 @@ pub mod PktBufType {
     pub const BufTypeRecv:u16 = 0;
     pub const BufTypeSend:u16 = 1;
 }
-///pkt_buf_handle_t, packet Buffer的Handle，用作Buffer的分配标记;
+///pkt_buf_handle_t, packet Buffer Handle
 #[derive(Debug)]
 pub struct pkt_buf_handle_t {
     buf_id:i32,

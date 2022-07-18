@@ -94,7 +94,7 @@ impl NetworkInterface {
     pub fn get_if_name(&self)->String {
         self.name.clone()
     }
-    ///设置接口的IP地址和掩码
+
     pub fn set_ip_addr(&mut self,ip:&IpAddr,mask_len:u8)->errcode::RESULT {
 
         let res = add_ip_address(self.index,&self.name,ip,mask_len);

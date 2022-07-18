@@ -57,12 +57,33 @@ every running task can be identified uniquely by **rsm_component_t**
 
 task can send message to each other, with normal message or a high priority message
 *pub fn send_asyn_msg(dst:&rsm_component_t,msg:rsm_message_t)->errcode::RESUL*
+
 *pub fn send_asyn_priority_msg(dst:&rsm_component_t,msg:rsm_message_t)->errcode::RESULT*
+
+for the receiver side, the application use msg.decode::<T>(v) to restore the message to application defined type
 
 RSM also provides a timer service, application can set timer simply by calling **set_timer** function, once the timer is set and expired, rsm task will receive a on_timer event, which is defined in the Runnable trait.
 
 *pub fn set_timer(dur_msec:u64,loop_count:u64,timer_data:usize)->Option<rsm_timer_id_t>*
 *pub fn kill_timer_by_id(timer_id:rsm_timer_id_t)->errcode::RESULT*
+
+Diagnostic
+===
+Developer and user can use rest api get running status and statistics
+
+Built in api
+---
+help,*curl http://127.0.0.1:12000/rsm/help*
+get task running status, *curl http://127.0.0.1:12000/rsm/task?1:2*
+get component configuration,*curl http://127.0.0.1:12000/rsm/component?1*
+
+Application defined OAM API
+---
+application Module must implement *OamReqCallBack* function, and invoke *RegisterOamModule* to register self
+*OamReqCallBack=fn(op:E_RSM_OAM_OP,url:&String,param:&String)->oam_cmd_resp_t*
+
+///register a module callback, urls is a list of rest api url, the prefix /rsm and id following a "?" are not included
+*RegisterOamModule(urls:&[String], callback:OamReqCallBack)*
 
 Other service& lib function
 ===
