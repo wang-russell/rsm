@@ -69,7 +69,7 @@ impl xlogger_t {
         }
         let logMsg = InnerLogMsg {
             ModuleName: self.module_name.clone(),
-            OccureTime: rsm_time_t::now_local().unwrap(),
+            OccureTime: rsm_time_t::now_utc(),
             LogType: LOG_TYPE_SYSTEM,
             LogLevel: level,
             Position: String::from(position),

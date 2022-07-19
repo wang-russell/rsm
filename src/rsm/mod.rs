@@ -2,8 +2,114 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
 
-///RSM=Realtime Software Middleware
-/// 本文件为RSM的公共接口定义
+//! # RSM
+//! RSM = Realtime Software Middleware
+//! Introduction
+//! ===
+//! Realtime system is defined as a system that can response the external request in certain deterministic time. To achieve this goal in generic computer systems, we must adopt a realtime shcedule policy on the software system, and keep from some time-consuming operation such as synchronous I/O operation, memory garbage collection and lock.
+//!
+//! RSM is a lightweight realtime middleware implementation written in rust, support event-driven, message oriented lock-free programming principle. in RSM, every software module is a **component**, which is normally a Finite State Machine, mainly proccess event loop. Each component can be instantiated to several tasks, and each task mapped to a dedicated **OS thread** and has its own message queue.
+//!
+//! Developer can set the task's schedule priority and their message queue length respectively,usually based on the service model and performance & latency requirements.
+//!
+//! RSM is suitable for the following applications:
+//! ----
+//! - network device control plane, e.g. routing protocol, service control
+//! - embedded system application
+//! - remote control system
+//! - realtime telemetry and instrumentation
+//!
+//! Programming
+//! ===
+//!
+//! Concept
+//! ---
+//!
+//! each RSM component must implement the **rsm::Runnable** trait and provides a task creation Callback function.
+//!
+//! the code in *main.rs* is a sample RSM application implementation.
+//!
+//! pub trait Runnable {
+//!
+//!    fn on_init(&mut self,cid:&rsm_component_t);
+//!
+//!    fn on_timer(&mut self,cid:&rsm_component_t,timer_id:rsm_timer_id_t,timer_data:usize);
+//!
+//!    fn on_message(&mut self,cid:&rsm_component_t,msg_id:rsm_message_id_t,msg:&rsm_message_t);
+//!
+//!    fn on_close(&mut self,cid:&rsm_component_t);
+//!
+//! }
+//!
+//! *type rsm_new_task=fn(cid:&rsm_component_t)->&'static mut dyn Runnable*
+//!
+//!
+//! Initialize the RSM
+//! ---
+//! using *rsm_init* function to init the rsm system, then the applicaition can register their components to RSM.
+//!
+//! rsm_init_cfg_t is the RSM's configuration file, which is in json format.
+//! rsm_init(conf:&config::rsm_init_cfg_t)->errcode::RESULT
+//!
+//! *pub fn registry_component(cid:u32,attrs:&component_attrs_t,callback:rsm_new_task)->errcode::RESULT*
+//!
+//! After the component registration is finished, the *start_rsm()* function should be called to running the system.
+//!
+//!Runtime
+//!---
+//!every running task can be identified uniquely by **rsm_component_t**
+//!
+//!task can send message to each other, with normal message or a high priority message
+//!*pub fn send_asyn_msg(dst:&rsm_component_t,msg:rsm_message_t)->errcode::RESUL*
+//!
+//! *pub fn send_asyn_priority_msg(dst:&rsm_component_t,msg:rsm_message_t)->errcode::RESULT*
+//!
+//! for the receiver side, the application use msg.decode::<T>(v) to restore the message to application defined type
+//!
+//! RSM also provides a timer service, application can set timer simply by calling **set_timer** function, once the timer is set and expired, rsm task will receive a on_timer event, which is defined in the Runnable trait.
+//!
+//! *pub fn set_timer(dur_msec:u64,loop_count:u64,timer_data:usize)->Option<rsm_timer_id_t>*
+//! *pub fn kill_timer_by_id(timer_id:rsm_timer_id_t)->errcode::RESULT*
+//!
+//! Diagnostic
+//! ===
+//! Developer and user can use rest api get running status and statistics
+//!
+//! Built in api
+//! ---
+//! help,*curl http://127.0.0.1:12000/rsm/help*
+//! get task running status, *curl http://127.0.0.1:12000/rsm/task?1:2*
+//! get component configuration,*curl http://127.0.0.1:12000/rsm/component?1*
+//! 
+//! Application defined OAM API
+//! ---
+//! application Module must implement *OamReqCallBack* function, and invoke *RegisterOamModule* to register self
+//! *OamReqCallBack=fn(op:E_RSM_OAM_OP,url:&String,param:&String)->oam_cmd_resp_t*
+//! 
+//! register a module callback, urls is a list of rest api url, the prefix /rsm and id following a "?" are not included
+//! *RegisterOamModule(urls:&[String], callback:OamReqCallBack)*
+//! 
+//! Other service& lib function
+//! ===
+//! xlog service
+//! ---
+//! xlog service is based on client/server architecture, the client side simple send log message to the server which responsible for log file manipulation, keeping from write disk under the application's context, which is very important for the realtime application.
+//! 
+//! *let log = rsm::new_xlog(module_name:&str)->xlog::xlogger_t;*
+//! 
+//! *log.Errorf(postion, err, logDesc);*
+//! 
+//! Other thread safe algorithm and data structure
+//! ---
+//! + spin_lock_t, Atomic operation based lock.
+//! + AtomicQueue, based on spin_lock
+//! + TsIdAllocator, thread safe Id allocator
+//! + bitmap
+//! + ethernet packet parser
+//! + Ip routing table
+//! + several other network function and object wrapper
+//! 
+ 
 use crate::common::{self,errcode};
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr,SocketAddr};
@@ -29,17 +135,19 @@ pub type rsm_message_id_t = u32;
 
 ///system & user cid scope definition
 pub const RSM_INVALID_CID:u32 = 0;
+///start of the CID reserved for system use
 pub const RSM_SYSTEM_CID_START:u32 = 1;
+///end of the CID reserved for system use
 pub const RSM_SYSTEM_CID_END:u32 = 1023;
 pub const RSM_USER_CID_START:u32 = 1024;
 ///maximum instance number per cid
 pub const RSM_MAX_INST_PER_CID:usize=16;
 ///allowed max message queue len
 pub const RSM_MAX_QUEUE_LEN:usize = 16384;
-
+///allowed max message length
 pub const RSM_MAX_MESSAGE_LEN:usize = 64000;
 
-///5 priority for a given task
+/// describe the task schedule priority, the REALTIME Priority is mapped to Linux/Windows Realtime priority
 #[derive(Copy,Clone,PartialEq,Debug,Eq,Serialize)]
 pub enum E_RSM_TASK_PRIORITY {
     THREAD_PRI_LOW = 0,
@@ -49,7 +157,10 @@ pub enum E_RSM_TASK_PRIORITY {
 	THREAD_PRI_REALTIME_HIGH = 4,
     THREAD_PRI_REALTIME_HIGHEST = 5,
 }
-///every runnable component is defined as rsm_component_t
+
+/// identifier for a software module running instance, include the software module unique id and an instance id
+/// in RSM, every software module running instance(component instance or task) is a Finite State Machine(FSM),
+///  which mapped to an OS native thread, process message event loop
 #[derive(Eq,PartialEq,Hash,Clone,Debug)]
 pub struct rsm_component_t {
     cid:rsm_component_id_t,
@@ -82,15 +193,20 @@ impl std::fmt::Display for rsm_component_t {
     }
 }
 
+///Task create callback function, which must return a valid object reference implement **Runnale** trait
 type rsm_new_task=fn(cid:&rsm_component_t)->&'static mut dyn Runnable;
-///Component must implement Runnable Trait
+///Component must implement the Runnable Trait
 pub trait Runnable {
+    ///task init, called first when the task instance is created
     fn on_init(&mut self,cid:&rsm_component_t);
+    /// called when a timer expiry event occured, timer_id indicate which timer fired
     fn on_timer(&mut self,cid:&rsm_component_t,timer_id:rsm_timer_id_t,timer_data:usize);
+    ///a ordinary message received, the app should call msg.decode method to get original data structure
     fn on_message(&mut self,cid:&rsm_component_t,msg_id:rsm_message_id_t,msg:&rsm_message_t);
     fn on_close(&mut self,cid:&rsm_component_t);
 }
 
+/// describe the component attribute while register to the RSM
 #[derive(Eq,PartialEq,Clone,Serialize)]
 pub struct component_attrs_t {
     pub cid:rsm_component_id_t,    
@@ -115,9 +231,11 @@ impl component_attrs_t {
     
 }
 
-///rsm message associated definition
+///begin of the rsm message id using by system
 pub const RSM_SYS_MESSAGE_ID_START:u32 = 1;
+///end of the rsm message id using by system
 pub const RSM_SYS_MESSAGE_ID_END:u32 = 8191;
+///user message ID start, application should use message id large than this value
 pub const RSM_USER_MESSAGE_ID_START:u32 = 8192;
 pub const RSM_INVALID_MESSAGE_ID:u32 = 0;
 
@@ -127,7 +245,7 @@ pub const RSM_MSG_ID_POWER_ON_ACK:u32 = 3;
 pub const RSM_MSG_ID_POWER_OFF:u32 = 4;
 pub const RSM_MSG_ID_TIMER:u32 = 10;
 
-
+///message object
 #[derive(Clone,Debug)]
 pub struct rsm_message_t {
     msg_id:u32,
@@ -171,7 +289,7 @@ impl rsm_message_t {
         };
         return Some(msg);
     }
-
+    /// on the receiving side, using decode to restore the original data format
     pub fn decode<'a,T>(msg:&'a Self)->Option<T>
     where T:Deserialize<'a> {
         match serde_json::from_slice::<T>(msg.msg_body.as_bytes()) {
@@ -181,7 +299,7 @@ impl rsm_message_t {
     }
 }
 static mut gRsmConfig:Option<config::rsm_init_cfg_t>=None;
-///rsm_init(), initialize rsm subsystem
+///initialize rsm subsystem, which should be called before register any component
 pub fn rsm_init(conf:&config::rsm_init_cfg_t)->errcode::RESULT {
     unsafe {
     if gRsmConfig.is_some() {
@@ -206,39 +324,47 @@ pub fn start_rsm() {
     
 }
 
-///rsm api
+///Register a component to RSM, with the configuration is specified by attrs parameter
+/// callback is a TASK creation call back function, which is invoke by RSM before schedule the task instance
 pub fn registry_component(cid:u32,attrs:&component_attrs_t,callback:rsm_new_task)->errcode::RESULT {
     return rsm_sched::registry_component(cid, attrs, callback)
 }
 
+/// get self component id
 pub fn get_self_cid()->Option<rsm_component_t>{
     return rsm_sched::get_self_cid();
 }
 
+/// get the sender cid under the message receive context
 pub fn get_sender_cid()->Option<rsm_component_t>{
     return rsm_sched::get_sender_cid()
 }
 
+///power_on or init_ack, to keep task start order, not implement yet
 pub fn power_on_ack() {
     return rsm_sched::power_on_ack();
 }
-///send asyn message
+///send asyn message, normally put into the receiver's message queue
 pub fn send_asyn_msg(dst:&rsm_component_t,msg:rsm_message_t)->errcode::RESULT {
     return rsm_sched::send_asyn_msg(dst, msg);
 }
 
-///send high priority asyn message
+///send high priority asyn message, this type message is ensure delivery to the component before other normal message
 pub fn send_asyn_priority_msg(dst:&rsm_component_t,msg:rsm_message_t)->errcode::RESULT {
     return rsm_sched::send_asyn_priority_msg(dst, msg);
 }
 
+///set a timer, loop for **loop_count** times every **dur_msec** milliseconds. if *loop_count* is 0, the timer will not stop util application kill the timer
 pub fn set_timer(dur_msec:u64,loop_count:u64,timer_data:usize)->Option<rsm_timer_id_t>{
     return rsm_timer::set_timer(dur_msec, loop_count, timer_data);
 }
 
+/// stop the timer, given the timer_id returned by *set_timer* function
 pub fn kill_timer_by_id(timer_id:rsm_timer_id_t)->errcode::RESULT {
     return rsm_timer::kill_timer_by_id(timer_id);
 }
+
+///create a xlog client instance, then using the instance to output logs
 pub fn new_xlog(module_name:&str)->xlog::xlogger_t {
     let serv_addr = match unsafe {&gRsmConfig} {
         None=>SocketAddr::new(IpAddr::from([127,0,0,1]),xlog::LOG_DEF_SERVICE_PORT),

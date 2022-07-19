@@ -4,7 +4,7 @@ Introduction
 ===
 Realtime system is defined as a system that can response the external request in certain deterministic time. To achieve this goal in generic computer systems, we must adopt a realtime shcedule policy on the software system, and keep from some time-consuming operation such as synchronous I/O operation, memory garbage collection and lock.
 
-RSM is a lightweight realtime middleware implementation written in rust, support event-driven, message oriented lock-free programming principle. in RSM, every software module is a **component**, and each component can be instantiated to several tasks, and each task mapped to a dedicated **OS thread** and has its own message queue.
+RSM is a lightweight realtime middleware implementation written in rust, support event-driven, message oriented lock-free programming principle. in RSM, every software module is a **component**, which is normally a Finite State Machine, mainly proccess event loop. each component can be instantiated to several tasks, and each task mapped to a dedicated **OS thread** and has its own message queue.
 
 Developer can set the task's schedule priority and their message queue length respectively,usually based on the service model and performance & latency requirements.
 

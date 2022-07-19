@@ -2,7 +2,17 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
 #![allow(dead_code)]
-
+//! #oam
+//! oam is a lightweight operation and maintenance frame work for RSM
+//! oam provide *REST API* to external system, and each component can register oam call back function
+//! oam's REST Server normally bind to 127.0.0.1:12000, the API URL with a /rsm prefix
+//! **curl http://127.0.0.1:12000/rsm/**help
+//! get task running status, *curl http://127.0.0.1:12000/rsm/task?1:2
+//! get component configuration,*curl http://127.0.0.1:12000/rsm/component?1*
+//! 
+//! application(component) can register their own REST API by provide the URL and callback function
+//! if the app register the url with "/sample", then the complete REST URL should be "http://127.0.0.1:12000/rsm/sample"
+//! 
 use crate::common::errcode;
 use serde::{Deserialize, Serialize};
 use crate::net_ext::restserver;
@@ -98,7 +108,7 @@ pub struct oam_resp_row_t {
 	pub row:Vec<param_pair_t>,
 }
 
-/*OAM response*/
+/// the OAM Callback function should return this structure
 #[derive(Deserialize,Serialize)]
 pub struct oam_cmd_resp_t {
 	pub RetCode        :errcode::RESULT, //返回码，errcode.RESULT_SUCCESS表示成功
@@ -141,7 +151,7 @@ impl oam_cmd_resp_t {
 }
 
 
-///Application Callback, register to OAM, and implement this callback function
+///Application Callback, if app want to register to OAM, must implement this callback function
 pub type OamReqCallBack=fn(op:E_RSM_OAM_OP,url:&String,param:&String)->oam_cmd_resp_t;
 
 ///register a module callback, urls is a list of rest api url, the prefix /rsm and id following a "?" are not included

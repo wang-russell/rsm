@@ -38,10 +38,10 @@ unsafe extern "system" fn os_timer_callback(_instance: *mut TP_CALLBACK_INSTANCE
 }
 
 #[cfg(unix)]
-type os_callback_fn = unsafe fn(ev:libc::sigval);
+type os_callback_fn = unsafe extern fn(ev:libc::sigval);
 #[cfg(unix)]
 #[no_mangle]
-unsafe fn os_timer_callback(ev:libc::sigval) {
+unsafe extern "C" fn os_timer_callback(ev:libc::sigval) {
     let tev = &ev;
     if tev.sival_ptr.is_null() {
         return

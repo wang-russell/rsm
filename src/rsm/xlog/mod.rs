@@ -1,5 +1,12 @@
-use self::syslog::sys_log_client_t;
+//! #xlog
+//! xlog is comprise of a xlog server and multiple xlog clients, which can be configured with different log filter level
+//! application's log message can be send to the server only when the log level higher than the log filter level
+//! each application module can create their own xlog client instance, then calling xlog client method to process log,
+//! xlog client using UDP socket to send json formatted message to xlog server, 
+//! then xlog server filter the log by configured filter level after receiving client's log message, the write to the disk periodically
+//! 
 
+use self::syslog::sys_log_client_t;
 use super::*;
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr,SocketAddr,UdpSocket};
@@ -49,10 +56,8 @@ pub struct InnerLogMsg {
     Context: String,
 }
 
-/*Log 监听器接口*/
+///Log listener, for application want to implement specific log storage & report function
 pub trait LogListener {
-	/*Log Service回调接口，监听者如果返回true，表示下一步LogService继续处理剩余逻辑；否则终结日志处理
-	msgSeq是消息的唯一序列号，上电后单增*/
 	fn NotifyLog(&mut self,msg:&InnerLogMsg, msgSeq:u64)->bool;
 }
 
@@ -81,14 +86,17 @@ pub struct log_client_t {
 const LOG_DEF_STORAGE_SIZE:u64=2*1024*1024;
 const LOG_DEF_PATH:&str = "./";
 const LOG_DEF_PREFIX:&str = "rsm_xlog";
+
+///configuration for create a log service
 #[derive(Clone,Debug,Serialize, Deserialize)]
 pub struct log_service_config_t {
 	pub persistentLevel:LOG_LEVEL,
 	pub consoleLevel:LOG_LEVEL,
-	pub maxStorageSize:u64, //默认磁盘空间，以MB计算
-	pub maxStoragePeriod:i32,   //默认存储时间，以天计算
+	///max log file disk size, unit is bytes, if the stored log file exceed this value, then the file will be tuncated
+	pub maxStorageSize:u64, 
+	pub maxStoragePeriod:i32,  
     pub logFilePath:String,
-	pub logFilePrefix:String,  //日志文件的名称前缀，比如anpc，系统会自动加上日期及扩展名，比如anpc_20190311.log
+	pub logFilePrefix:String, 
     pub self_addr:SocketAddr,
 	pub syslog_server:Option<SocketAddr>,
 }
@@ -102,15 +110,17 @@ impl log_service_config_t {
 		}
 	}
 }
+
+///log service should be create only once in any system
 pub struct log_service_t  {
     service_conf:log_service_config_t,
 	sck:UdpSocket,
-	curLogFile:Option<fs::File>, //当前打开的文件句柄
-	unSyncedMsg:i32,      //已经写入文件，但是没有存盘的消息计数
+	curLogFile:Option<fs::File>, 
+	unSyncedMsg:i32,      
 	lastWriteTime:common::datetime_t,
 	queue:VecDeque<String>,
-	logMuduleControl:TsHashMap<String,log_client_t>, //以名称索引到日志的客户模块信息
-	logModuleIndex:TsHashMap<SocketAddr,String>,   //以IP:端口索引到名称
+	logMuduleControl:TsHashMap<String,log_client_t>, 
+	logModuleIndex:TsHashMap<SocketAddr,String>,  
 	logListener:TsHashMap<String,*mut dyn LogListener>,
 	logPackets:u64, 
     LogBytes:u64,
@@ -119,7 +129,7 @@ pub struct log_service_t  {
 	sys_client:Option<sys_log_client_t>,
 }
 
-/*Log实例对象结构*/
+///Log client instance, should be created before using log function
 pub struct xlogger_t {
     module_name: String,
     self_ip: IpAddr,
@@ -132,8 +142,7 @@ pub struct xlogger_t {
 }
 
 
-/*压缩一个文件，用gzip算法进行压缩*/
-pub fn compressFile(fileIn:&String, fileOut:&String)->errcode::RESULT {
+pub(crate) fn compressFile(fileIn:&String, fileOut:&String)->errcode::RESULT {
 	let mut fp1 = match fs::OpenOptions::new().read(true).open(fileIn) {
 		Err(_)=>return errcode::ERROR_OPEN_FILE,
 		Ok(f)=>f,
