@@ -2,8 +2,8 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
 
-use rsm::alg::{self,crypto};
-use rsm::common;
+use rust_rsm::alg::{self,crypto};
+use rust_rsm::common;
 
 const MAX_TEST_LEN:usize=130;
 const MAX_TEST_ROUND:usize=128*1024+1;

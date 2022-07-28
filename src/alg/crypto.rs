@@ -19,6 +19,7 @@ const MAX_PASSWD_SIZE:usize=32;
 
 #[derive(PartialEq,Eq,Copy,Clone)]
 pub enum E_ENCRYPT_ALG {
+    enc_alg_null = 0,
     enc_alg_aes_cbc_128=1,
     enc_alg_aes_cbc_256=2,
     enc_alg_aes_gcm_128=3,
@@ -26,13 +27,14 @@ pub enum E_ENCRYPT_ALG {
     enc_alg_sm4=5,
 }
 
-pub struct encrypt_alg_t {
+#[derive(Clone)]
+pub struct crypto_alg_t {
     alg:E_ENCRYPT_ALG,
     passwd_len:usize,
     passwd:[u8;MAX_PASSWD_SIZE],
 }
 
-impl encrypt_alg_t {
+impl crypto_alg_t {
     pub fn new(alg:E_ENCRYPT_ALG,passwd:&[u8])->Result<Self,errcode::RESULT> {
         let mut enc_alg = Self {            
             alg,
@@ -100,27 +102,6 @@ impl encrypt_alg_t {
     pub fn get_alg(&self)->E_ENCRYPT_ALG {
         return self.alg
     }
-}
-
-
-pub struct decrypt_alg_t {
-    alg:E_ENCRYPT_ALG,
-    passwd_len:usize,
-    passwd:[u8;MAX_PASSWD_SIZE],
-}
-
-impl decrypt_alg_t {
-    pub fn new(alg:E_ENCRYPT_ALG,passwd:&[u8])->Result<Self,errcode::RESULT> {
-        let mut enc_alg = Self {
-            alg,
-            passwd_len:std::cmp::min(passwd.len(),MAX_PASSWD_SIZE),
-            passwd:[0;MAX_PASSWD_SIZE],
-        };
-        unsafe {
-            std::ptr::copy_nonoverlapping(passwd.as_ptr(), enc_alg.passwd.as_mut_ptr(),enc_alg.passwd_len);
-        }
-        return Ok(enc_alg)
-    }
 
     pub fn decrypt_aes_128(&self,src:&[u8],dst:&mut [u8])->Result<usize,errcode::RESULT> {
         let src_len = src.len();
@@ -135,7 +116,8 @@ impl decrypt_alg_t {
         
         //起始两个字节存放原始报文长度
         let data_len:u16 = ((src[0] as u16) << 8) +src[1] as u16;
-        if data_len as usize+18>src_len {
+        if src_len<data_len as usize+2 || ((src_len-2) % CIPHER_BLOCK_SIZE_128!=0) {
+            //println!("src_len={},data_len={}",src_len,data_len);
             return Err(errcode::ERROR_INVALID_MSG)
         }
         let mut input = GenericArray::from_slice(&src[2..2+CIPHER_BLOCK_SIZE_128]);
@@ -144,14 +126,14 @@ impl decrypt_alg_t {
         let mut dst_start=0;
         let mut src_start = 2+CIPHER_BLOCK_SIZE_128;
         while src_start<src_len {
-            let step = std::cmp::min(CIPHER_BLOCK_SIZE_128, src_len-src_start);
-            input = GenericArray::from_slice(&src[src_start..src_start+step]);
-            output = GenericArray::from_mut_slice(&mut dst[dst_start..dst_start+step]);
+            //let step = std::cmp::min(CIPHER_BLOCK_SIZE_128, src_len-src_start);
+            input = GenericArray::from_slice(&src[src_start..src_start+CIPHER_BLOCK_SIZE_128]);
+            output = GenericArray::from_mut_slice(&mut dst[dst_start..dst_start+CIPHER_BLOCK_SIZE_128]);
             decrypt.decrypt_block_b2b(&input,&mut output);
 
-            slice_xor_simple(&iv,&mut dst[dst_start..dst_start+step]);
-            dst_start+=step;
-            src_start+=step;
+            slice_xor_simple(&iv,&mut dst[dst_start..dst_start+CIPHER_BLOCK_SIZE_128]);
+            dst_start+=CIPHER_BLOCK_SIZE_128;
+            src_start+=CIPHER_BLOCK_SIZE_128;
         }
 
         return Ok(data_len as usize)
@@ -168,9 +150,5 @@ impl decrypt_alg_t {
         } else {
             return self.decrypt_aes_256(src, dst)
         }
-    }
-
-    pub fn get_alg(&self)->E_ENCRYPT_ALG {
-        return self.alg
     }
 }

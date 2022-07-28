@@ -149,7 +149,8 @@ pub fn set_self_priority(policy:i32,priority:i32)->errcode::RESULT {
 #[cfg(windows)]
 pub fn set_self_priority(_policy:i32,priority:i32)->errcode::RESULT {
 	let h = unsafe { Threading::GetCurrentThread() };
-	let res = unsafe { Threading::SetPriorityClass(h, priority as u32) };
+	let res = unsafe { Threading::SetThreadPriority(h, priority) };
+    // SetPriorityClass(h, priority as u32) };
 	if res == 0 {
 		return errcode::ERROR_OS_CALL_FAILED
 	}

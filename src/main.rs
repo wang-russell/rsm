@@ -105,7 +105,7 @@ fn registerApp(cid:u32) {
         name:"sample".to_string(),
         inst_num:2, //实例数量
         qlen:100,
-        priority:rsm::E_RSM_TASK_PRIORITY::THREAD_PRI_HIGH,
+        priority:rsm::E_RSM_TASK_PRIORITY::THREAD_PRI_REALTIME_HIGHEST,
         need_init_ack:true,
     };
      rsm::registry_component(cid, &attrs, new_sample);

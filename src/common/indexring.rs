@@ -1,9 +1,11 @@
+//提供一个有序、有界的环，每个元素都有唯一的序号，按序号进行存取
+//主要场景：可靠传输的报文发送队列，确认、重传和查重
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
 use super::*;
 
-#[derive(Copy,Clone,PartialEq)]
+#[derive(Copy,Clone,PartialEq,Debug)]
 pub enum EItemState {
     ITEM_STATE_IDLE = 0,
     ITEM_STATE_USED = 1,
@@ -13,7 +15,6 @@ pub const INVALID_SEQ: u64 = 2 ^ 64 - 1;
 pub const INVALID_INDEX: usize = 0xFFFFFFFF;
 pub struct data_item<T> {
     seq_no: u64,
-    deleted: bool,
     state: EItemState,
     item: Option<T>,
 }
@@ -21,7 +22,6 @@ impl <T>data_item<T> {
     pub fn new()->Self{
         return Self{
             seq_no:0,
-            deleted:false,
             state:EItemState::ITEM_STATE_IDLE,
             item:None,
         };
@@ -57,9 +57,21 @@ impl<T> index_ring_t<T> {
             };
         }
 
+    fn is_valid_index(&self,idx:usize)->bool {
+        if idx>=self.capacity {
+            return false;
+        }
+        if self.head<=self.tail {
+            return idx>=self.head && idx<=self.tail
+        } else {
+            return (idx>=self.head && idx<self.capacity) || idx<=self.tail
+        }
+        
+       
+    }
     fn set_item(&mut self, seq: u64, idx: usize, item: T) -> errcode::RESULT {
-        assert!(idx < self.capacity);
-        if self.data[idx].state == EItemState::ITEM_STATE_USED && self.data[idx].seq_no==seq{
+        
+        if self.data[idx].state == EItemState::ITEM_STATE_USED && self.data[idx].seq_no == seq {
             return errcode::ERROR_ALREADY_EXIST;
         }
         self.data[idx].state = EItemState::ITEM_STATE_USED;
@@ -70,13 +82,18 @@ impl<T> index_ring_t<T> {
     }
     //添加一条记录,如果序号超出当前范围，往前移动；但是如果序号超出当前最大值+capacity，则认为是非法序号，丢弃
     pub fn add_item(&mut self, seq: u64, item: T) -> errcode::RESULT {
+        //序号小于min_seq，或者比max_seq大capacity，认为是非法序号
+        if seq<self.min_seq || seq>=self.max_seq+self.capacity as u64{
+            return errcode::ERROR_INVALID_INDEX;
+        }
+        let distance = if seq<=self.max_seq {0} else {seq-self.max_seq};
         if self.get_ring_len() == 0 {
             self.head = 0;
-            self.tail = 0;
-            self.min_seq = seq;
+            self.tail = distance as usize;
+            //self.min_seq = seq;
             self.max_seq = seq;
-            self.expect_item+=1;
-            return self.set_item(seq, 0, item);
+            self.expect_item+=1+distance;
+            return self.set_item(seq, self.tail, item);
         }
 
         if seq >= self.min_seq && seq <= self.max_seq {
@@ -84,18 +101,21 @@ impl<T> index_ring_t<T> {
             if idx < self.capacity {                
                 return self.set_item(seq, idx, item);
             }
-        } else if seq > self.max_seq && seq < self.max_seq + self.capacity as u64 {
-            self.expect_item+=seq-self.max_seq;
-            let distance = seq - self.max_seq;
+        } else if seq > self.max_seq {            
+            self.expect_item+=distance;
             self.max_seq = seq;
             if self.get_ring_len() + distance as usize > self.capacity {
-                self.min_seq = self.max_seq - self.capacity as u64 + 1;
-                self.head = (self.tail + distance as usize + 1) % self.capacity;
+                //self.min_seq = self.min_seq + distance;
+                self.remove_item_before_seq(self.min_seq + distance-1, true);
+                //self.head = (self.head + distance as usize) % self.capacity;
             }
             self.tail = (self.tail + distance as usize) % self.capacity;
             return self.set_item(seq, self.tail, item);
         }
-        return errcode::ERROR_INVALID_INDEX;
+
+        return  errcode::ERROR_INVALID_INDEX;
+
+        
     }
 
     fn incr_hdr_index(&mut self) {
@@ -105,6 +125,7 @@ impl<T> index_ring_t<T> {
                 self.head = INVALID_INDEX;
                 self.tail = INVALID_INDEX;
                 self.min_seq += 1;
+                self.max_seq=self.min_seq;
             }
             _ => {
                 self.min_seq += 1;
@@ -160,7 +181,7 @@ impl<T> index_ring_t<T> {
         
         let mut head=self.head;
         while head!=((idx+1) % self.capacity) {
-            if self.data[head].deleted || force {
+            if self.data[head].state==EItemState::ITEM_STATE_DELETED || force {
                 self.inner_delete_item(head);
             } else {
                 return errcode::ERROR_INVALID_STATE;
@@ -277,6 +298,7 @@ impl<T> index_ring_t<T> {
         self.max_seq = 1;
         for i in &mut self.data {
             i.state = EItemState::ITEM_STATE_IDLE;
+            i.item=None;
         }
 
     }

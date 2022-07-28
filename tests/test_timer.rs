@@ -2,8 +2,8 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
 
-use rsm::rsm::{os_timer};
-use rsm::common;
+use rust_rsm::rsm::{os_timer};
+use rust_rsm::common;
 use std::time::Duration;
 use std::thread;
 

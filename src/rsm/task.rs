@@ -86,6 +86,9 @@ impl task_t {
         }
     }
 
+    pub(crate) fn get_task_priority(&self)->E_RSM_TASK_PRIORITY {
+        self.priority
+    }
     /// return current recv queue len
     pub fn get_qlen(&self)->usize {
         if let Some(q) = &self.recv_q {
@@ -103,7 +106,7 @@ impl task_t {
     pub(crate)  fn set_os_task_attr(&mut self) {
         self.os_tid = sched::get_self_os_task_id();
         let (policy,prio) = rsm_sched::map_os_priority(self.priority);
-        sched::set_self_priority(policy,prio as i32);
+        sched::set_self_priority(policy,prio);
     }
 
     ///Running the Task

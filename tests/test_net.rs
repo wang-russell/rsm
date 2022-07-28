@@ -4,17 +4,13 @@
 
 use std::time::Duration;
 use std::{self, net};
-use rsm::common::{self, errcode,rawstring};
-use rsm::net_ext::{self,mac_addr,ethernet_pkt};
+use rust_rsm::common::{self, errcode,rawstring};
+use rust_rsm::net_ext::{self,mac_addr,ethernet_pkt};
 use std::net::{IpAddr,SocketAddr};
-use mio::{Events,Poll,Interest,Token};
-use std::net::UdpSocket;
+use mio::{Poll,Interest,Token};
 
 #[cfg(unix)]
 use rsm::net_ext::unix::rawsocket;
-#[cfg(windows)]
-use rsm::net_ext::windows::rawsocket;
-use rsm::net_ext::pktbuf;
 
 #[cfg(unix)]
 use std::os::unix::io::{AsRawFd, RawFd};
@@ -97,34 +93,6 @@ fn test_poll_rawfd(){
     }
 }
 
-#[test]
-fn test_af_packet() {
-    use rsm::net_ext::rawpacket;
-    use std::io::Error;
-    let mut conf = rawpacket::Config::default();
-    conf.promiscuous = true;
-    conf.is_l2_socket = true;
-    let mut socket = rawpacket::RawPacket::new("eth0",&conf).unwrap();
-    let mut buf=[0u8;4096];
-    for i in 0..100 {
-        let res = socket.wait_read_event(1000);
-        match  res{
-            Err(e)=>println!("error,code={},os_err={}",e,Error::last_os_error()),
-            Ok(_)=> {
-                match socket.recv_packet(&mut buf[..]) {
-                Ok(len)=> {
-                    let desc = ethernet_pkt::ethernet_packet_info_t::from_ethernet_packet(&buf[0..len]).unwrap();
-                    println!("No {} packet,len={}, desc={}\n,content:{}\n",i,len,desc.to_string(),
-                common::rawstring::slice_to_hex_string(&buf[0..std::cmp::min(len,32)]))
-                },
-                    Err(e)=>println!("error,code={},os_err={}",e,Error::last_os_error()),
-                }
-            },
-     }
-    }
-
-}
-
 const MAX_RECV_BUF_SIZE:usize=2048;
 static mut gRecvBuf1:[u8;MAX_RECV_BUF_SIZE*16]=[0;MAX_RECV_BUF_SIZE*16];
 fn get_buffer(idx:usize)->&'static mut [u8] {
@@ -164,7 +132,7 @@ fn test_net_ext() {
 
 #[test]
 fn test_network_if() {
-    use rsm::net_ext::netinterface::{self,NetworkInterface};
+    use rust_rsm::net_ext::netinterface::{self,NetworkInterface};
     let ifs = NetworkInterface::get_sys_interfaces();
     for oneif in ifs {
         println!("System interface is {:?}",oneif);
@@ -184,7 +152,7 @@ fn test_network_if() {
 }
 
 const MAX_ROUTE_REC_COUNT:usize = 100000;
-use rsm::net_ext::iprt;
+use rust_rsm::net_ext::iprt;
 #[test]
 fn test_ip_route() {
    

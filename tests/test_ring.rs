@@ -2,7 +2,7 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
 
-use rsm::common::{indexring,errcode};
+use rust_rsm::common::{indexring,errcode};
 use std::thread;
 use std::time::Duration;
 use std::sync::Arc;

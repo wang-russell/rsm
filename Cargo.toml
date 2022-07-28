@@ -1,11 +1,11 @@
 [package]
 name = "rust-rsm"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 authors = ["Russell Wang <wang_russell@hotmail.com>"]
 license = "Apache-2.0"
 description = "RSM:A Realtime Software Middleware framework"
-keywords = ["realtime","embedded system","middleware","lock-free"]
+keywords = ["realtime","embedded","middleware","lock-free"]
 build = "build.rs"
 links = "os_linux"
 homepage = "https://github.com/wang-russell/rsm/"

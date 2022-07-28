@@ -4,10 +4,10 @@
 use std::io::Write;
 use std::time::Duration;
 use std::{self, net, thread};
-use rsm::common::{self, errcode,rawstring,tsmap::TsHashMap,tsqueue::TsDequeue};
+use rust_rsm::common::{self, errcode,rawstring,tsmap::TsHashMap,tsqueue::TsDequeue};
 use std::collections::{HashMap,VecDeque};
-use rsm::alg::hash_alg;
-use rsm::net_ext::{self,restserver,mac_addr,ethernet_pkt};
+use rust_rsm::alg::hash_alg;
+use rust_rsm::net_ext::{self,restserver};
 
 static mut count: i32 = 0;
 fn call_back(
@@ -70,7 +70,7 @@ fn test_rest() {
             .as_bytes();
     let mut sck =
         net::TcpStream::connect(net::SocketAddr::new(ip, restserver::DEF_SERVER_PORT)).unwrap();
-    sck.set_write_timeout(Some(Duration::from_millis(1000)));
+    let _ = sck.set_write_timeout(Some(Duration::from_millis(1000)));
 
     for i in 0..11 {
         println!("Send {} Packet", i);
@@ -171,7 +171,7 @@ const TEST_CAPACITY:usize = 100000;
 #[test]
 fn test_map_performance() {
     use std::sync::Mutex;
-    use rsm::common::tsmap;
+    use rust_rsm::common::tsmap;
     let mut map1:Mutex<HashMap<usize,usize>> = Mutex::new(HashMap::with_capacity(TEST_CAPACITY));
     let mut map2:TsHashMap<usize,usize> = TsHashMap::new(TEST_CAPACITY);
     let mut map3:tsmap::TsHashMap<usize,usize> = tsmap::TsHashMap::new(TEST_CAPACITY);
@@ -298,7 +298,7 @@ fn test_date_time() {
 
 #[test]
 fn test_spin_lock() {
-    use rsm::common::spin_lock::spin_lock_t;
+    use rust_rsm::common::spin_lock::spin_lock_t;
 
     let lock=spin_lock_t::new();
 
@@ -323,7 +323,7 @@ fn test_spin_lock() {
 
 #[test]
 fn test_os_sched() {
-    use rsm::common::sched;
+    use rust_rsm::common::sched;
     println!("Master thread self_pid={},cpu_nums={}",
         sched::get_self_threadId(),sched::get_sys_cpu_num());
         std::thread::spawn(an_th);
@@ -331,14 +331,14 @@ fn test_os_sched() {
 }
 
 fn an_th() {
-    use rsm::common::sched;
+    use rust_rsm::common::sched;
     println!("Spawn thread self_pid={},cpu_nums={}",
     sched::get_self_threadId(),sched::get_sys_cpu_num());
 }
 
 #[test]
 fn test_bit_map() {
-    use rsm::common::bitmap::bitmap_t;
+    use rust_rsm::common::bitmap::bitmap_t;
 
     let mut bitmap = bitmap_t::new(32768);
 
@@ -367,7 +367,7 @@ fn test_bit_map() {
 
 #[test]
 fn test_tsidallocator() {
-    use rsm::common::tsidallocator::TsIdAllocator;
+    use rust_rsm::common::tsidallocator::TsIdAllocator;
     let mut ids = TsIdAllocator::new(1,1024);
 
     for i in 1..1025 {
