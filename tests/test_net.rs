@@ -10,88 +10,14 @@ use std::net::{IpAddr,SocketAddr};
 use mio::{Poll,Interest,Token};
 
 #[cfg(unix)]
-use rsm::net_ext::unix::rawsocket;
+use rust_rsm::net_ext::unix::rawsocket;
 
 #[cfg(unix)]
 use std::os::unix::io::{AsRawFd, RawFd};
-#[cfg(unix)]
-use mio::unix::SourceFd;
 
 mod test_common;
 
 const MAX_TEST_BUF_SIZE:usize = 3000;
-
-
-#[test]
-fn test_mio_poll(){
-    let mut sck = mio::net::UdpSocket::bind(SocketAddr::new(IpAddr::from([0,0,0,0]),10001)).unwrap();
-    let mut poll = Poll::new().unwrap();
-    //let mut raw_src = SourceFd(&sck.as_raw_fd());
-    poll.registry().register(&mut sck ,Token(0),Interest::READABLE);
-    let mut events = mio::Events::with_capacity(2);
-
-    let mut buf:[u8;MAX_TEST_BUF_SIZE] = [0;MAX_TEST_BUF_SIZE];
-    for _ in 0..100{
-        let start = common::get_now_usec64();
-    match poll.poll(&mut events, Some(Duration::from_millis(1000))) {
-        Err(e)=>{println!("poll err={}",e)},
-        Ok(_)=>{
-            if let Ok((len,addr)) = sck.recv_from(&mut buf) {
-                println!("recv udp msg,len={},peer={}",len,addr);
-            }
-        },
-    }
-    println!("poll event for {} us",common::get_now_usec64()-start);
-}
-
-}
-
-#[test]
-#[cfg(unix)]
-fn test_mio_rawfd(){
-    let sck = UdpSocket::bind(SocketAddr::new(IpAddr::from([0,0,0,0]),10000)).unwrap();
-    let mut poll = Poll::new().unwrap();
-    //let mut raw_src = SourceFd(&sck.as_raw_fd());
-    poll.registry().register(&mut SourceFd(&sck.as_raw_fd()) ,Token(0),Interest::READABLE);
-    let mut events = mio::Events::with_capacity(2);
-
-    let mut buf:[u8;MAX_TEST_BUF_SIZE] = [0;MAX_TEST_BUF_SIZE];
-    for _ in 0..100{
-        let start = common::get_now_usec64();
-    match poll.poll(&mut events, Some(Duration::from_millis(1000))) {
-        Err(e)=>{println!("poll err={}",e)},
-        Ok(_)=>{
-            if let Ok((len,addr)) = sck.recv_from(&mut buf) {
-                println!("recv udp msg,len={},peer={}",len,addr);
-            }
-        },
-    }
-    println!("poll event for {} us",common::get_now_usec64()-start);
-}
-}
-
-
-#[test]
-#[cfg(unix)]
-fn test_poll_rawfd(){
-    let sck = UdpSocket::bind(SocketAddr::new(IpAddr::from([0,0,0,0]),10000)).unwrap();
-    
-
-    let mut buf:[u8;MAX_TEST_BUF_SIZE] = [0;MAX_TEST_BUF_SIZE];
-    for _ in 0..100{
-    let start = common::get_now_usec64();
-    
-    match rawsocket::wait_for_single_fd_read(sck.as_raw_fd(),1000) {
-        Err(e)=>{println!("poll err={}",e)},
-        Ok(_)=>{
-            if let Ok((len,addr)) = sck.recv_from(&mut buf) {
-                println!("recv udp msg,len={},peer={}",len,addr);
-            }
-        },
-    }
-    println!("poll event for {} us",common::get_now_usec64()-start);
-    }
-}
 
 const MAX_RECV_BUF_SIZE:usize=2048;
 static mut gRecvBuf1:[u8;MAX_RECV_BUF_SIZE*16]=[0;MAX_RECV_BUF_SIZE*16];

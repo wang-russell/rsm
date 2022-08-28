@@ -161,17 +161,17 @@ pub fn get_raw_socket(socket:&mio_udpsocket)->RawFdType {
 }
 
 #[cfg(windows)]
-pub fn set_socket_recvbuf(socket:&UdpSocket,buf_size:i32)->i32 {
+pub fn set_socket_recvbuf(socket:RawFdType,buf_size:i32)->i32 {
     unsafe {
-    return WinSock::setsockopt(socket.as_raw_socket().try_into().unwrap(), WinSock::SOL_SOCKET as i32, WinSock::SO_RCVBUF as i32, &buf_size as *const i32 as windows_sys::core::PCSTR,4);
+    return WinSock::setsockopt(socket as usize, WinSock::SOL_SOCKET as i32, WinSock::SO_RCVBUF as i32, &buf_size as *const i32 as windows_sys::core::PCSTR,4);
     }
     
 }
 
 #[cfg(windows)]
-pub fn set_socket_sendbuf(socket:&UdpSocket,buf_size:i32)->i32 {
+pub fn set_socket_sendbuf(socket:RawFdType,buf_size:i32)->i32 {
     unsafe {
-    return WinSock::setsockopt(socket.as_raw_socket().try_into().unwrap(), WinSock::SOL_SOCKET as i32, WinSock::SO_SNDBUF as i32, &buf_size as *const i32 as windows_sys::core::PCSTR,4);
+    return WinSock::setsockopt(socket as usize, WinSock::SOL_SOCKET as i32, WinSock::SO_SNDBUF as i32, &buf_size as *const i32 as windows_sys::core::PCSTR,4);
     }
     
 }
@@ -184,7 +184,7 @@ pub fn create_rawsocket(is_l2_socket:bool)->RawFdType {
     WinSock::socket(WinSock::AF_INET as i32,WinSock::SOCK_RAW as i32,0) as RawFdType
     }
 }
-    
+
 
 #[cfg(windows)]
 pub fn get_netif_index_by_name(name: &str) -> Result<i32,errcode::RESULT> {
@@ -196,6 +196,54 @@ pub fn bind_by_index(fd:RawFdType,ifindex: i32) -> errcode::RESULT {
     errcode::RESULT_SUCCESS
 }
 
+pub fn bind(fd:RawFdType,addr:&SocketAddr)->errcode::RESULT {
+    let (os_addr,len)=sockaddr_t::from_socket_addr(addr);
+
+    let res = unsafe { WinSock::bind(fd as usize,std::ptr::addr_of!(os_addr) as *const SOCKADDR, len) };
+    if res!=0 {
+        println!("bind socket addr={},os_err={}",addr,std::io::Error::last_os_error());
+        return errcode::ERROR_BIND_SOCKET
+    }
+    return errcode::RESULT_SUCCESS
+
+}
+pub fn listen(fd:RawFdType,back_log:i32)->errcode::RESULT {
+
+    let res = unsafe { WinSock::listen(fd as usize,back_log) };
+    if res!=0 {
+        return errcode::ERROR_BIND_SOCKET
+    }
+    
+    return errcode::RESULT_SUCCESS
+
+}
+
+pub fn accept(fd:RawFdType)->Result<(RawFdType,SocketAddr),errcode::RESULT> {
+    let mut sock_addr = unsafe { mem::zeroed::<sockaddr_t>() };
+    let mut len=std::mem::size_of_val(&sock_addr) as i32;
+    let res = unsafe {        
+        WinSock::accept(fd as usize,std::ptr::addr_of_mut!(sock_addr) as *mut SOCKADDR,&mut len as * mut i32) 
+    };
+    let addr=match unsafe { to_socket_addr(std::ptr::addr_of!(sock_addr)) } {
+        Err(_)=>return Err(errcode::ERROR_INVALID_IPADDR),
+        Ok(a)=>a,
+    };
+    return Ok((res as RawFdType,addr))
+
+}
+
+pub fn connect(fd:RawFdType,dst:&SocketAddr)->errcode::RESULT {
+    let (addr,len)=sockaddr_t::from_socket_addr(dst);
+    let ret = unsafe {
+        WinSock::connect(fd as usize, std::ptr::addr_of!(addr) as *const SOCKADDR, len)
+    };
+
+    if ret==0 {
+        return errcode::RESULT_SUCCESS
+    }
+    return errcode::ERROR_OS_CALL_FAILED
+}
+
 #[cfg(windows)]
 pub fn set_promisc_mode(fd:RawFdType,if_idx: i32, state: bool) ->errcode::RESULT {
     errcode::RESULT_SUCCESS
@@ -203,9 +251,9 @@ pub fn set_promisc_mode(fd:RawFdType,if_idx: i32, state: bool) ->errcode::RESULT
 
 //从Socket中读取一段内容
 #[cfg(windows)]
-pub fn read_fd(fd: RawSocket, buf: &mut [u8],mut flags:i32) -> Result<usize,errcode::RESULT> {
+pub fn read_fd(fd: RawSocket, buf: &mut [u8],flags:i32) -> Result<usize,errcode::RESULT> {
     let rv = unsafe { 
-        WinSock::WSARecvEx(fd as usize, buf.as_mut_ptr() as PSTR , buf.len() as i32, &mut flags as *mut i32) 
+        WinSock::recv(fd as usize, buf.as_mut_ptr() as PSTR , buf.len() as i32, flags) 
     };
     if rv < 0 {
         return Err(errcode::ERROR_RECV_MSG);
@@ -221,7 +269,20 @@ pub fn write_fd(fd: RawSocket, buf: &[u8],flags:i32) -> Result<usize,errcode::RE
         WinSock::send(fd as usize, buf.as_ptr() as PCSTR, buf.len() as i32, flags)
     };
     if rv < 0 {
-        return Err(errcode::ERROR_RECV_MSG);
+        return Err(errcode::ERROR_SEND_MSG);
+    }
+
+    Ok(rv as usize)
+}
+
+pub fn send_to(fd: RawFdType, buf: &[u8],flags:i32,dst:&SocketAddr) -> Result<usize,errcode::RESULT> {
+    let (addr,len)=sockaddr_t::from_socket_addr(dst);
+    let rv = unsafe { 
+        WinSock::sendto(fd as usize, buf.as_ptr() as PCSTR, buf.len() as i32, flags,
+        std::ptr::addr_of!(addr) as *const SOCKADDR, len)
+    };
+    if rv < 0 {
+        return Err(errcode::ERROR_SEND_MSG);
     }
 
     Ok(rv as usize)

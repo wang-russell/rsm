@@ -52,6 +52,9 @@ impl rsm::Runnable for sample_app_t {
         unsafe { data+=2 };
     }
 
+    fn on_socket_event(&mut self,cid:&rsm::rsm_component_t,event:rsm::rsm_socket_event_t) {
+
+    }
     fn on_message(&mut self,cid:&rsm::rsm_component_t,msg_id:rsm::rsm_message_id_t,msg:&rsm::rsm_message_t) {
 
         let self_cid=rsm::get_self_cid();

@@ -13,8 +13,8 @@ use windows_sys::Win32::System::Threading;
 use libc;
 use common::sched;
 
-struct component_registry_t {
-    cattr:component_attrs_t,
+pub(crate) struct component_registry_t {
+    pub(crate) cattr:component_attrs_t,
     new_task:rsm_new_task,
 }
 
@@ -176,7 +176,7 @@ pub(crate) fn send_asyn_priority_msg(dst:&rsm_component_t,msg:rsm_message_t)->er
     return task.send_asyn_priority_msg(msg);
 }
 
-fn get_component_registry(cid:u32)->Option<&'static component_registry_t> {
+pub(crate) fn get_component_registry(cid:u32)->Option<&'static component_registry_t> {
     let cm = match unsafe {& gComponentRegistry} {
         None=>return None,
         Some(c)=>c,

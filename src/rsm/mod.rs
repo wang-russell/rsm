@@ -119,6 +119,7 @@ pub mod task;
 pub mod rsm_sched;
 pub mod rsm_timer;
 pub mod os_timer;
+pub mod socket;
 pub mod config;
 pub mod xlog;
 pub mod oam;
@@ -193,6 +194,24 @@ impl std::fmt::Display for rsm_component_t {
     }
 }
 
+///socket event definition
+pub type SOCKET_EVENT=u32;
+///socket is readable
+pub const SOCK_EVENT_READ:SOCKET_EVENT= 1;
+///socket is writable
+pub const SOCK_EVENT_WRITE:SOCKET_EVENT= 1<<1;
+///new socket created, usually a tcp client connection
+pub const SOCK_EVENT_ERR:SOCKET_EVENT= 1<<2;
+///socket has been closed by remote peer
+pub const SOCK_EVENT_CLOSE:SOCKET_EVENT= 1<<3;
+
+#[derive(Clone,Debug,Serialize,Deserialize)]
+pub struct rsm_socket_event_t {
+    pub socket_id:i32,
+    pub sock_type:socket::SOCKET_TYPE,
+    pub event:SOCKET_EVENT,
+    
+}
 ///Task create callback function, which must return a valid object reference implement **Runnale** trait
 type rsm_new_task=fn(cid:&rsm_component_t)->&'static mut dyn Runnable;
 ///Component must implement the Runnable Trait
@@ -201,8 +220,14 @@ pub trait Runnable {
     fn on_init(&mut self,cid:&rsm_component_t);
     /// called when a timer expiry event occured, timer_id indicate which timer fired
     fn on_timer(&mut self,cid:&rsm_component_t,timer_id:rsm_timer_id_t,timer_data:usize);
-    ///a ordinary message received, the app should call msg.decode method to get original data structure
+    /// socket event, if the task use rsm socket to send/recv message
+    /// upon recv this message, task should use correspondant Upd/Tcp/Raw Socket to recv packet, util no more packet
+    /// rsm automatically accept the tcp connection request from client, the notify the app, app can close the socket to reject the connection
+    fn on_socket_event(&mut self,cid:&rsm_component_t,event:rsm_socket_event_t);
+
+    ///an ordinary message received, the app should call msg.decode method to get original data structure
     fn on_message(&mut self,cid:&rsm_component_t,msg_id:rsm_message_id_t,msg:&rsm_message_t);
+    ///task has been destroyed, reserved for future use
     fn on_close(&mut self,cid:&rsm_component_t);
 }
 
@@ -239,11 +264,13 @@ pub const RSM_SYS_MESSAGE_ID_END:u32 = 8191;
 pub const RSM_USER_MESSAGE_ID_START:u32 = 8192;
 pub const RSM_INVALID_MESSAGE_ID:u32 = 0;
 
+///predefined rsm system message for inner use, application should not use these message id
 pub const RSM_MSG_ID_MASTER_POWER_ON:u32 = 1;
 pub const RSM_MSG_ID_SLAVE_POWER_ON:u32 = 2;
 pub const RSM_MSG_ID_POWER_ON_ACK:u32 = 3;
 pub const RSM_MSG_ID_POWER_OFF:u32 = 4;
 pub const RSM_MSG_ID_TIMER:u32 = 10;
+pub const RSM_MSG_ID_SOCKET:u32 = 12;
 
 ///message object
 #[derive(Clone,Debug)]
@@ -290,9 +317,9 @@ impl rsm_message_t {
         return Some(msg);
     }
     /// on the receiving side, using decode to restore the original data format
-    pub fn decode<'a,T>(msg:&'a Self)->Option<T>
+    pub fn decode<'a,T>(&'a self)->Option<T>
     where T:Deserialize<'a> {
-        match serde_json::from_slice::<T>(msg.msg_body.as_bytes()) {
+        match serde_json::from_slice::<T>(self.msg_body.as_bytes()) {
             Ok(v)=>Some(v),
             Err(_)=>None,
         }
@@ -313,6 +340,7 @@ pub fn rsm_init(conf:&config::rsm_init_cfg_t)->errcode::RESULT {
     //let mut log_conf = xlog::log_service_config_t::new_default();
     
     xlog::xlog_server::InitLogService(&conf.log_config);
+    socket::socketpool::init_socket_pool();
     errcode::RESULT_SUCCESS
 }
 

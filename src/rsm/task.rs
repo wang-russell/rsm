@@ -131,9 +131,16 @@ impl task_t {
                     RSM_MSG_ID_TIMER=> {
                         self.stats.timer_ev_count+=1;
                         self.task_obj.on_timer(&self.tid,msg.timer_id,msg.timer_data);
-                    },                    
+                    },
+                    RSM_MSG_ID_SOCKET=> {
+                        if let Some(ev) = msg.decode() {
+                            self.task_obj.on_socket_event(&self.tid, ev);
+                        }
+                        
+                    },                   
                     RSM_MSG_ID_MASTER_POWER_ON..=RSM_MSG_ID_SLAVE_POWER_ON=>self.task_obj.on_init(&self.tid),
 
+                    
                     RSM_MSG_ID_POWER_OFF=>{
                         self.task_obj.on_close(&self.tid);
                         self.terminated = true;

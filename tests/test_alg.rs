@@ -36,8 +36,8 @@ fn test_encrypt_alg() {
     let mut buffer=[0u8;MAX_TEST_LEN+32];
     let passwd="hello world";
 
-    let enc = crypto::encrypt_alg_t::new(crypto::E_ENCRYPT_ALG::enc_alg_aes_cbc_128,passwd.as_bytes()).unwrap();
-    let dec = crypto::decrypt_alg_t::new(crypto::E_ENCRYPT_ALG::enc_alg_aes_cbc_128,passwd.as_bytes()).unwrap();
+    let enc = crypto::crypto_alg_t::new(crypto::E_ENCRYPT_ALG::enc_alg_aes_cbc_128,passwd.as_bytes()).unwrap();
+    let dec = crypto::crypto_alg_t::new(crypto::E_ENCRYPT_ALG::enc_alg_aes_cbc_128,passwd.as_bytes()).unwrap();
 
     let enc_len = enc.encrypt(&slice1,&mut buffer).unwrap();
     let dec_len = match dec.decrypt(&buffer[0..enc_len],&mut slice2) {

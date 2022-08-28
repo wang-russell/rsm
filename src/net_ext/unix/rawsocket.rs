@@ -88,17 +88,17 @@ pub unsafe fn to_socket_addr(
 }
 
 ///设置socket接收缓冲区大小，以字节计算
-pub fn set_socket_recvbuf(socket:&UdpSocket,buf_size:i32)->i32 {
+pub fn set_socket_recvbuf(socket:RawFdType,buf_size:i32)->i32 {
     return  unsafe { 
-        libc::setsockopt(socket.as_raw_fd() as c_int, libc::SOL_SOCKET,
+        libc::setsockopt(socket as c_int, libc::SOL_SOCKET,
         libc::SO_RCVBUF,&(buf_size as c_int) as *const _ as *const c_void,std::mem::size_of::<i32>() as libc::socklen_t) 
     };
 }
 
 ///设置socket发送缓冲区大小，以字节计算
-pub fn set_socket_sendbuf(socket:&UdpSocket,buf_size:i32)->i32 {
+pub fn set_socket_sendbuf(socket:RawFdType,buf_size:i32)->i32 {
     return unsafe {
-        libc::setsockopt(socket.as_raw_fd() as c_int, libc::SOL_SOCKET,
+        libc::setsockopt(socket as c_int, libc::SOL_SOCKET,
         libc::SO_SNDBUF,&(buf_size as c_int) as *const _ as *const c_void,std::mem::size_of::<i32>() as libc::socklen_t)
     };
 }
@@ -184,6 +184,55 @@ pub fn bind_by_index(fd:RawFdType,ifindex: i32) -> errcode::RESULT {
     errcode::RESULT_SUCCESS
 }
 
+pub fn bind(fd:RawFdType,addr:&SocketAddr)->errcode::RESULT {
+    let (os_addr,len)=sockaddr_t::from_socket_addr(addr);
+
+    let res = unsafe { libc::bind(fd,std::ptr::addr_of!(os_addr) as *const libc::sockaddr, len) };
+    if res!=0 {
+        println!("bind socket addr={},os_err={}",addr,std::io::Error::last_os_error());
+        return errcode::ERROR_BIND_SOCKET
+    }
+    return errcode::RESULT_SUCCESS
+
+}
+pub fn listen(fd:RawFdType,back_log:i32)->errcode::RESULT {
+
+    let res = unsafe { libc::listen(fd,back_log) };
+    if res!=0 {
+        return errcode::ERROR_BIND_SOCKET
+    }
+    return errcode::RESULT_SUCCESS
+
+}
+
+pub fn accept(fd:RawFdType)->Result<(RawFdType,SocketAddr),errcode::RESULT> {
+    let mut sock_addr = unsafe { mem::zeroed::<sockaddr_t>() };
+    let mut len=std::mem::size_of::<sockaddr_t>() as u32;
+    let res = unsafe { libc::accept(fd,std::ptr::addr_of_mut!(sock_addr) as *mut libc::sockaddr,&mut len as * mut u32) };
+    if res<0 {
+        println!("[rawsocket]accept connection error,ret={},os_err={}",res,std::io::Error::last_os_error());
+        return Err(errcode::ERROR_OS_CALL_FAILED)
+    }
+    let addr=match unsafe { to_socket_addr(std::ptr::addr_of!(sock_addr)) } {
+        Err(_)=>return Err(errcode::ERROR_INVALID_IPADDR),
+        Ok(a)=>a,
+    };
+    return Ok((res as RawFdType,addr))
+
+}
+
+pub fn connect(fd:RawFdType,dst:&SocketAddr)->errcode::RESULT {
+    let (addr,len)=sockaddr_t::from_socket_addr(dst);
+    let ret = unsafe {
+        libc::connect(fd, std::ptr::addr_of!(addr) as *const libc::sockaddr, len)
+    };
+
+    if ret==0 {
+        return errcode::RESULT_SUCCESS
+    }
+    return errcode::ERROR_OS_CALL_FAILED
+}
+
 ///设置网卡的混杂模式
 pub fn set_promisc_mode(fd:RawFdType,if_idx: i32, state: bool) ->errcode::RESULT {
     let packet_membership = if state {
@@ -224,6 +273,19 @@ pub fn write_fd(fd: RawFd, buf: &[u8],flags:i32) -> Result<usize,errcode::RESULT
     if rv < 0 {
         //println!("send packet error:{} ",Error::last_os_error());
         return Err(errcode::ERROR_RECV_MSG);
+    }
+
+    Ok(rv as usize)
+}
+
+pub fn send_to(fd: RawFdType, buf: &[u8],flags:i32,dst:&SocketAddr) -> Result<usize,errcode::RESULT> {
+    let (addr,len)=sockaddr_t::from_socket_addr(dst);
+    let rv = unsafe { 
+        libc::sendto(fd, buf.as_ptr() as *const libc::c_void, buf.len(), flags,
+        std::ptr::addr_of!(addr) as *const libc::sockaddr, len)
+    };
+    if rv < 0 {
+        return Err(errcode::ERROR_SEND_MSG);
     }
 
     Ok(rv as usize)
