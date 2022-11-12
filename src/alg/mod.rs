@@ -4,10 +4,20 @@
 pub mod hash_alg;
 pub mod crypto;
 
+pub use crypto::crypto_alg_t;
+
 use std::mem;
 use crate::common::errcode;
 
+pub mod spf;
+pub use spf::spf_matrix_t;
+pub mod prio_queue;
+pub use prio_queue::priority_queue_t;
+
 const MAX_SIZE:usize = 65536;
+
+const SPF_MAX_NODE_NUM:usize = 1024;
+
 ///将两个切片进行Xor处理，结果写入dst中；需要dst的长度大于src，src不足的长度按照0进行补足
 pub fn slice_xor(src:&[u8],dst:&mut [u8])->errcode::RESULT {
     let src_len = src.len();
@@ -65,4 +75,33 @@ pub fn log2(v:u64)->usize {
     }
     return 0
     
+}
+
+///将第二个数组合并到第一个数组中，并且去重
+pub fn merge_slice<T>(v1:&mut Vec<T>,v2:&Vec<T>) 
+    where T:PartialEq+Clone {
+        for s in v2 {
+            if !v1.contains(s){
+                v1.push((*s).clone())
+            }
+        }
+}
+
+///将第二个数组合并到第一个数组中，并且去重
+use std::hash::Hash;
+pub fn merge_slice2<T>(v1:&mut Vec<T>,v2:&Vec<T>) 
+    where T:PartialEq+Clone+Eq+Hash+Sized {
+        use std::collections::HashSet;
+        let mut m:HashSet<T>=HashSet::with_capacity(v1.len()<<1);
+        m=v1.iter().map(|x| x.clone()).collect();
+        /*
+        for i in 0..v1.len() {
+            m.insert(v1[i].clone());
+        }        */
+
+        for s in v2{
+            if !m.contains(s) {
+                v1.push(s.clone())
+            }
+        }
 }

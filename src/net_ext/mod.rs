@@ -9,23 +9,27 @@ use std::os::raw::{c_int};
 use std::process::Command;
 #[cfg(unix)]
 use std::fs::{OpenOptions};
-#[cfg(unix)]
-use crate::net_ext::ipnetwork::IpNetwork;
+
 #[cfg(unix)]
 use std::os::unix::io::{RawFd};
 #[cfg(windows)]
 use std::os::windows::io::{RawHandle};
 #[cfg(windows)]
 use std::os::windows::io::{RawSocket};
+use std::ptr;
 
 pub mod arp;
 pub mod mac_addr;
+pub use mac_addr::mac_addr_t;
+
 pub mod ethernet_pkt;
 
 pub mod rawpacket;
 pub mod pktbuf;
 pub mod fec;
 pub mod ipnetwork;
+pub use ipnetwork::IpNetwork;
+
 pub mod netinterface;
 pub mod iprt;
 pub mod restserver;
@@ -181,6 +185,29 @@ pub fn ipaddr_to_array(ip:&IpAddr)->(usize,[u8;IPV6_ADDR_LEN]) {
         }
         IpAddr::V6(addr)=> {
             (IPV6_ADDR_LEN, addr.octets())
+        }
+    }
+}
+///copy IpAddr to a specified slice
+pub fn copy_ipaddr_to_slice(src:&IpAddr,buf:&mut[u8])->Result<usize,errcode::RESULT> {
+    match src {
+        IpAddr::V4(ip)=> {
+            if buf.len()<IPV4_ADDR_LEN {
+                return Err(errcode::ERROR_OUTOF_MEM)
+            }
+            unsafe {
+                ptr::copy_nonoverlapping(ip.octets().as_ptr(), buf.as_mut_ptr(), IPV4_ADDR_LEN);
+            }
+            return Ok(IPV4_ADDR_LEN)
+        },
+        IpAddr::V6(ip)=> {
+            if buf.len()<IPV6_ADDR_LEN {
+                return Err(errcode::ERROR_OUTOF_MEM)
+            }
+            unsafe {
+                ptr::copy_nonoverlapping(ip.octets().as_ptr(), buf.as_mut_ptr(), IPV6_ADDR_LEN);
+            }
+            return Ok(IPV6_ADDR_LEN)
         }
     }
 }

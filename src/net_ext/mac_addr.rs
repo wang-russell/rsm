@@ -4,8 +4,8 @@
 
 use super::*;
 use std::fmt;
-
-#[derive(Copy, Clone, Eq, PartialEq, Default,Debug)]
+use serde::{Serialize,Deserialize};
+#[derive(Copy, Clone, Eq, PartialEq, Default,Debug,Deserialize,Serialize)]
 pub struct mac_addr_t {
     pub a: u8,
     pub b: u8,
@@ -50,10 +50,8 @@ impl mac_addr_t {
     }
 
     pub fn to_u64(&self) -> u64 {
-        let p: [u8; 8] = [self.a, self.b, self.c, self.d, self.e, self.f, 0, 0];
-        unsafe {
-            return *(&p as *const u8 as *const u64);
-        }
+        let p: [u8; 8] = [0,0,self.a, self.b, self.c, self.d, self.e, self.f];
+            return u64::from_be_bytes(p)
     }
     pub fn to_slice(&self)->&[u8] {
         let p = unsafe { &(&*(&self.a as *const u8 as *const [u8;MAC_ADDR_SIZE]))[..] };

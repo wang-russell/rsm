@@ -96,6 +96,24 @@ impl TcpSocket {
         return sock.get_raw_fd()
     }
 
+    pub fn get_local_addr(&self)->Option<SocketAddr> {
+        let sock = match socketpool::get_socket_by_idx(self.sck_idx) {
+            None=>return None,
+            Some(s)=>s,
+        };
+
+        return Some(sock.get_local_addr())
+    }
+
+    pub fn get_peer_addr(&self)->Option<SocketAddr> {
+        let sock = match socketpool::get_socket_by_idx(self.sck_idx) {
+            None=>return None,
+            Some(s)=>s,
+        };
+
+        return Some(sock.get_peer_addr())
+    }        
+
     pub fn close(&mut self)->errcode::RESULT {
         socketpool::close_socket(self.sck_idx)
     }

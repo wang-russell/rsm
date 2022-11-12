@@ -4,7 +4,8 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
-use aes::{Aes128,Aes256};
+use aes::{self,Aes128,Aes256, Block};
+use sm4::Sm4;
 use crate::common::{self,errcode};
 use super::*;
 use rand::random;
@@ -32,6 +33,9 @@ pub struct crypto_alg_t {
     alg:E_ENCRYPT_ALG,
     passwd_len:usize,
     passwd:[u8;MAX_PASSWD_SIZE],
+    cryptor_aes_128:Option<Aes128>,
+    cryptor_sm4:Option<Sm4>,
+    
 }
 
 impl crypto_alg_t {
@@ -40,23 +44,54 @@ impl crypto_alg_t {
             alg,
             passwd_len:std::cmp::min(passwd.len(),MAX_PASSWD_SIZE),
             passwd:[0;MAX_PASSWD_SIZE],
+            cryptor_aes_128:None,
+            cryptor_sm4:None,
+
         };
         unsafe {
             std::ptr::copy_nonoverlapping(passwd.as_ptr(), enc_alg.passwd.as_mut_ptr(),enc_alg.passwd_len);
         }
+        match alg {
+            E_ENCRYPT_ALG::enc_alg_aes_cbc_128=> {
+                enc_alg.cryptor_aes_128=match Aes128::new_from_slice(&enc_alg.passwd[0..16]) {
+                    Ok(e)=>Some(e),
+                    Err(_)=>None,
+                };
+            },
+            E_ENCRYPT_ALG::enc_alg_sm4=>{
+                enc_alg.cryptor_sm4=match Sm4::new_from_slice(&enc_alg.passwd[0..16]) {
+                    Ok(e)=>Some(e),
+                    Err(_)=>None,
+                };
+            },
+            _=>(),
+        }
         return Ok(enc_alg)
     }
 
+    #[inline(always)]
+    fn encrypt_bock(&self,input:&Block,output:&mut Block) {
+        match self.alg {
+            E_ENCRYPT_ALG::enc_alg_aes_cbc_128=> {
+                if let Some(e)=&self.cryptor_aes_128 {
+                    e.encrypt_block_b2b(input, output);
+                }
+            },
+            E_ENCRYPT_ALG::enc_alg_sm4=> {
+                if let Some(e)=&self.cryptor_sm4 {
+                    e.encrypt_block_b2b(input, output);
+                }                
+            },
+            _=>(),
+        }
+    }
     ///AES 128加密
-    pub fn encrypt_aes_128(&self,src:&[u8],dst:&mut [u8])->Result<usize,errcode::RESULT> {
+    pub fn encrypt_aes128_sm4(&self,src:&[u8],dst:&mut [u8])->Result<usize,errcode::RESULT> {
         let src_len = src.len();
         if dst.len()<src_len+18 {
             return Err(errcode::ERROR_BUFFER_TOO_SMALL)
-        }
-        let encrypt = match Aes128::new_from_slice(&self.passwd[0..16]) {
-            Ok(e)=>e,
-            Err(_)=>return Err(errcode::ERROR_INIT_FAILED)
-        };
+        }        
+        
         let iv=random::<u128>().to_be_bytes();
         let len_bytes = (src_len as u16).to_be_bytes();
         //起始两个字节存放原始报文长度
@@ -70,14 +105,15 @@ impl crypto_alg_t {
 
         let mut input = GenericArray::from_slice(&iv[0..CIPHER_BLOCK_SIZE_128]);
         let mut output = GenericArray::from_mut_slice(&mut dst[2..2+CIPHER_BLOCK_SIZE_128]);
-        encrypt.encrypt_block_b2b(&input,&mut output);
+        
+        self.encrypt_bock(&input,&mut output);
         let mut dst_start=2+CIPHER_BLOCK_SIZE_128;
         let mut src_start = 0;
         while src_start<src_len {
             slice_xor_simple(&iv,&mut pad_buf[src_start..src_start+CIPHER_BLOCK_SIZE_128]);
             input = GenericArray::from_slice(&pad_buf[src_start..src_start+CIPHER_BLOCK_SIZE_128]);         
             output = GenericArray::from_mut_slice(&mut dst[dst_start..dst_start+CIPHER_BLOCK_SIZE_128]);
-            encrypt.encrypt_block_b2b(&input,&mut output);
+            self.encrypt_bock(&input,&mut output);
             dst_start+=CIPHER_BLOCK_SIZE_128;
             src_start+=CIPHER_BLOCK_SIZE_128;         
         }
@@ -86,15 +122,18 @@ impl crypto_alg_t {
 
     }
 
+
+
     pub fn encrypt_aes_256(&self,src:&[u8],dst:&mut [u8])->Result<usize,errcode::RESULT> {
         Err(errcode::ERROR_NOT_SUPPORT)
     }
     pub fn encrypt(&self,src:&[u8],dst:&mut [u8])->Result<usize,errcode::RESULT> {
         
-        if self.alg==E_ENCRYPT_ALG::enc_alg_aes_cbc_128 {
-            return self.encrypt_aes_128(src, dst)
-        } else {
-            return self.encrypt_aes_256(src, dst)
+        match self.alg {
+            E_ENCRYPT_ALG::enc_alg_aes_cbc_128=>return self.encrypt_aes128_sm4(src, dst),
+            E_ENCRYPT_ALG::enc_alg_aes_cbc_256=>return self.encrypt_aes_256(src, dst),
+            E_ENCRYPT_ALG::enc_alg_sm4=>return self.encrypt_aes128_sm4(src, dst),
+            _=>return Err(errcode::ERROR_NOT_SUPPORT),
         }
     
     }
@@ -103,15 +142,29 @@ impl crypto_alg_t {
         return self.alg
     }
 
-    pub fn decrypt_aes_128(&self,src:&[u8],dst:&mut [u8])->Result<usize,errcode::RESULT> {
+    #[inline(always)]
+    fn decrypt_bock(&self,input:&Block,output:&mut Block) {
+        match self.alg {
+            E_ENCRYPT_ALG::enc_alg_aes_cbc_128=> {
+                if let Some(e)=&self.cryptor_aes_128 {
+                    e.decrypt_block_b2b(input, output);
+                }
+            },
+            E_ENCRYPT_ALG::enc_alg_sm4=> {
+                if let Some(e)=&self.cryptor_sm4 {
+                    e.decrypt_block_b2b(input, output);
+                }                
+            },
+            _=>(),
+        }
+    }
+
+    pub fn decrypt_aes128_sm4(&self,src:&[u8],dst:&mut [u8])->Result<usize,errcode::RESULT> {
         let src_len = src.len();
         if dst.len()+18<src_len {
             return Err(errcode::ERROR_BUFFER_TOO_SMALL)
         }
-        let decrypt = match Aes128::new_from_slice(&self.passwd[0..16]) {
-            Ok(e)=>e,
-            Err(_)=>return Err(errcode::ERROR_INIT_FAILED)
-        };
+
         let mut iv=[0u8;16];
         
         //起始两个字节存放原始报文长度
@@ -122,14 +175,14 @@ impl crypto_alg_t {
         }
         let mut input = GenericArray::from_slice(&src[2..2+CIPHER_BLOCK_SIZE_128]);
         let mut output = GenericArray::from_mut_slice(&mut iv);
-        decrypt.decrypt_block_b2b(&input,&mut output);
+        self.decrypt_bock(&input,&mut output);
         let mut dst_start=0;
         let mut src_start = 2+CIPHER_BLOCK_SIZE_128;
         while src_start<src_len {
             //let step = std::cmp::min(CIPHER_BLOCK_SIZE_128, src_len-src_start);
             input = GenericArray::from_slice(&src[src_start..src_start+CIPHER_BLOCK_SIZE_128]);
             output = GenericArray::from_mut_slice(&mut dst[dst_start..dst_start+CIPHER_BLOCK_SIZE_128]);
-            decrypt.decrypt_block_b2b(&input,&mut output);
+            self.decrypt_bock(&input,&mut output);
 
             slice_xor_simple(&iv,&mut dst[dst_start..dst_start+CIPHER_BLOCK_SIZE_128]);
             dst_start+=CIPHER_BLOCK_SIZE_128;
@@ -144,11 +197,15 @@ impl crypto_alg_t {
         Err(errcode::ERROR_NOT_SUPPORT)
     }
 
+
     pub fn decrypt(&self,src:&[u8],dst:&mut [u8])->Result<usize,errcode::RESULT> {
-        if self.alg==E_ENCRYPT_ALG::enc_alg_aes_cbc_128 {
-            return self.decrypt_aes_128(src, dst)
-        } else {
-            return self.decrypt_aes_256(src, dst)
+
+        match self.alg {
+            E_ENCRYPT_ALG::enc_alg_aes_cbc_128=>return self.decrypt_aes128_sm4(src, dst),
+            E_ENCRYPT_ALG::enc_alg_aes_cbc_256=>return self.decrypt_aes_256(src, dst),
+            E_ENCRYPT_ALG::enc_alg_sm4=>return self.decrypt_aes128_sm4(src, dst),
+            _=>return Err(errcode::ERROR_NOT_SUPPORT),
         }
+
     }
 }

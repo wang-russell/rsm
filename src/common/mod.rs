@@ -8,15 +8,31 @@ use std::time::{self as std_time, SystemTime};
 
 pub mod errcode;
 pub mod tsidallocator;
+pub use tsidallocator::TsIdAllocator;
+
 pub mod tsmap;
+pub use tsmap::TsHashMap;
 pub mod tsqueue;
+pub use tsqueue::TsDequeue;
 
 pub mod indexring;
 pub mod rawstring;
 pub mod atomicqueue;
+pub use atomicqueue::AtomicDequeue;
+
 pub mod spin_lock;
+pub use spin_lock::spin_lock_t;
+
 pub mod sched;
 pub mod bitmap;
+pub use bitmap::bitmap_t;
+
+pub mod ringbuf;
+pub use ringbuf::ring_buffer_t;
+pub use ringbuf::ts_ring_buffer_t;
+
+pub mod uuid;
+pub use uuid::uuid_t;
 
 pub type rsm_time_t = time::OffsetDateTime;
 

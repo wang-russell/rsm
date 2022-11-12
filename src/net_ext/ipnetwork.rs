@@ -5,8 +5,9 @@
 use std::net::{IpAddr};
 use crate::common::errcode;
 use super::*;
+use serde::{Deserialize,Serialize};
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Deserialize,Serialize)]
 pub struct IpNetwork {
     ip:IpAddr,
     mask:IpAddr,
@@ -29,6 +30,19 @@ impl IpNetwork {
         };
 
         Ok(ipnet)
+    }
+
+    pub fn new_host_ipnet(ip:IpAddr)->Self {
+        let mask_len=match ip {
+            IpAddr::V4(_)=>(IPV4_ADDR_LEN*8) as u8,
+            IpAddr::V6(_)=>(IPV6_ADDR_LEN*8) as u8,
+        };
+        let mask = Self::get_ip_mask(ip.is_ipv6(),mask_len).unwrap();
+        return Self {
+            ip,
+            mask,
+            mask_len,
+        }
     }
 
     ///从IP、掩码构建一个IpNetwork

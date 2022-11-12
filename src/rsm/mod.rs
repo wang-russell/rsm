@@ -162,7 +162,7 @@ pub enum E_RSM_TASK_PRIORITY {
 /// identifier for a software module running instance, include the software module unique id and an instance id
 /// in RSM, every software module running instance(component instance or task) is a Finite State Machine(FSM),
 ///  which mapped to an OS native thread, process message event loop
-#[derive(Eq,PartialEq,Hash,Clone,Debug)]
+#[derive(Eq,PartialEq,Hash,Clone,Debug,Copy)]
 pub struct rsm_component_t {
     cid:rsm_component_id_t,
     node_id:rsm_node_id_t,
@@ -201,9 +201,11 @@ pub const SOCK_EVENT_READ:SOCKET_EVENT= 1;
 ///socket is writable
 pub const SOCK_EVENT_WRITE:SOCKET_EVENT= 1<<1;
 ///new socket created, usually a tcp client connection
-pub const SOCK_EVENT_ERR:SOCKET_EVENT= 1<<2;
+pub const SOCK_EVENT_NEW:SOCKET_EVENT= 1<<2;
+//Error Connection
+pub const SOCK_EVENT_ERR:SOCKET_EVENT= 1<<3;
 ///socket has been closed by remote peer
-pub const SOCK_EVENT_CLOSE:SOCKET_EVENT= 1<<3;
+pub const SOCK_EVENT_CLOSE:SOCKET_EVENT= 1<<4;
 
 #[derive(Clone,Debug,Serialize,Deserialize)]
 pub struct rsm_socket_event_t {
@@ -374,6 +376,15 @@ pub fn power_on_ack() {
 }
 ///send asyn message, normally put into the receiver's message queue
 pub fn send_asyn_msg(dst:&rsm_component_t,msg:rsm_message_t)->errcode::RESULT {
+    return rsm_sched::send_asyn_msg(dst, msg);
+}
+
+pub fn send_asyn_msg_ext<'de,T>(dst:&rsm_component_t,msg_id:u32,body:&T)->errcode::RESULT
+    where T:Sized+Serialize+Deserialize<'de> {
+    let msg=match rsm_message_t::new(msg_id, body) {
+        None=>return errcode::ERROR_ENCODE_MSG,
+        Some(m)=>m,
+    };
     return rsm_sched::send_asyn_msg(dst, msg);
 }
 

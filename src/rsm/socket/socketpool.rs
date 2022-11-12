@@ -3,7 +3,7 @@
 #![allow(non_upper_case_globals)]
 #![allow(dead_code)]
 
-use crate::rsm::{SOCK_EVENT_READ, SOCK_EVENT_CLOSE};
+use crate::rsm::{SOCK_EVENT_READ, SOCK_EVENT_CLOSE, SOCK_EVENT_NEW};
 use crate::{rsm,rsm::rsm_component_t};
 use crate::{net_ext::RawFdType};
 use crate::common::{tsidallocator::TsIdAllocator,spin_lock::spin_lock_t};
@@ -377,9 +377,11 @@ fn process_events(pool:&mut SocketPool,events:Vec<socket_event_t>) {
                 },
                 Ok(idx)=>idx,
             };
-            continue;
-                //ev.socket_id=client_id;            
+            //continue;
+            ev.socket_id=client_id;
+            ev.event=SOCK_EVENT_NEW;            
         }
+        
         let sck = match pool.get_sock_binding_info(ev.socket_id) {
             None=>continue,
             Some(s)=>s,

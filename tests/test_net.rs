@@ -2,12 +2,10 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
 
-use std::time::Duration;
 use std::{self, net};
-use rust_rsm::common::{self, errcode,rawstring};
+use rust_rsm::common::{self, errcode};
 use rust_rsm::net_ext::{self,mac_addr,ethernet_pkt};
-use std::net::{IpAddr,SocketAddr};
-use mio::{Poll,Interest,Token};
+use std::net::{IpAddr};
 
 #[cfg(unix)]
 use rust_rsm::net_ext::unix::rawsocket;

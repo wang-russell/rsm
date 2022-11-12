@@ -1,17 +1,19 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
+#![allow(dead_code)]
+
 use std::io::Write;
 use std::time::Duration;
-use std::{self, net, thread};
+use std::{self, net, thread, cmp};
 use rust_rsm::common::{self, errcode,rawstring,tsmap::TsHashMap,tsqueue::TsDequeue};
 use std::collections::{HashMap,VecDeque};
 use rust_rsm::alg::hash_alg;
-use rust_rsm::net_ext::{self,restserver};
+use rust_rsm::net_ext::{restserver};
 
 static mut count: i32 = 0;
 fn call_back(
-    method: &restserver::Method,
+    _method: &restserver::Method,
     url: &str,
     body: &String,
 ) -> Result<(String,restserver::E_CONTENT_TYPE), errcode::RESULT> {
@@ -36,7 +38,7 @@ fn test_get_path() {
     let res = restserver::get_url_path(url);
     let path = match res {
         Ok(s) => s,
-        Err(r) => panic!("Error get path from url {}", url),
+        Err(r) => panic!("Error get path from url {},err={}", url,r),
     };
     assert_eq!(path, "/aaa/ccc");
     println!("return path is {}", path);
@@ -59,7 +61,7 @@ fn test_rest() {
 
     let s = match s {
         Ok(server) => server,
-        Err(code) => {
+        Err(_code) => {
             return;
         }
     };
@@ -172,7 +174,7 @@ const TEST_CAPACITY:usize = 100000;
 fn test_map_performance() {
     use std::sync::Mutex;
     use rust_rsm::common::tsmap;
-    let mut map1:Mutex<HashMap<usize,usize>> = Mutex::new(HashMap::with_capacity(TEST_CAPACITY));
+    let map1:Mutex<HashMap<usize,usize>> = Mutex::new(HashMap::with_capacity(TEST_CAPACITY));
     let mut map2:TsHashMap<usize,usize> = TsHashMap::new(TEST_CAPACITY);
     let mut map3:tsmap::TsHashMap<usize,usize> = tsmap::TsHashMap::new(TEST_CAPACITY);
     let mut cur = common::get_now_usec64();
@@ -184,7 +186,7 @@ fn test_map_performance() {
 
     cur = common::get_now_usec64();
     for (a,b) in map1.lock().unwrap().iter(){
-        let (k,v)=(a,b);
+        let (_k,_v)=(a,b);
     }
 
     println!("iterate {} item into HashMap,spend {} us\n",TEST_CAPACITY,common::get_now_usec64()-cur);
@@ -224,7 +226,7 @@ fn test_map_performance() {
 
     cur = common::get_now_usec64();
     for (a,b) in map3.iter(){
-        let (k,v)=(a,b);
+        let (_k,_v)=(a,b);
     }
     println!("iterate {} item into old TsHashMap,spend {} us\n",TEST_CAPACITY,common::get_now_usec64()-cur);
 
@@ -246,7 +248,7 @@ fn test_queue_performance() {
 
     cur = common::get_now_usec64();
     for _ in 0..TEST_QUEUE_CAPACITY {
-        let a=q.pop_front();
+        let _a=q.pop_front();
     }
     println!("Pop {} item from tsqueue,spend {} us, current_len={}\n",TEST_QUEUE_CAPACITY,common::get_now_usec64()-cur,q.len());
 
@@ -258,7 +260,7 @@ fn test_queue_performance() {
 
     cur = common::get_now_usec64();
     for _ in 0..TEST_QUEUE_CAPACITY {
-        let aq = aq.pop_front();
+        let _aq = aq.pop_front();
     }
     println!("pop {} item from Atomic Queue,spend {} us,cur_len={}\n",TEST_QUEUE_CAPACITY,common::get_now_usec64()-cur,aq.len());
 
@@ -271,7 +273,7 @@ fn test_queue_performance() {
     println!("insert {} item into oringin Queue,spend {} us\n",vq.len(),common::get_now_usec64()-cur);
     vq.clear();
     
-    let mut vq1:VecDeque<usize> = VecDeque::with_capacity(TEST_QUEUE_CAPACITY);
+    let vq1:VecDeque<usize> = VecDeque::with_capacity(TEST_QUEUE_CAPACITY);
     let lq = Mutex::new(vq1);
 
     cur = common::get_now_usec64();
@@ -327,7 +329,7 @@ fn test_os_sched() {
     println!("Master thread self_pid={},cpu_nums={}",
         sched::get_self_threadId(),sched::get_sys_cpu_num());
         std::thread::spawn(an_th);
-    std::thread::sleep_ms(1000);
+    std::thread::sleep(Duration::from_millis(1000));
 }
 
 fn an_th() {
@@ -388,4 +390,73 @@ fn test_tsidallocator() {
  
         assert_eq!(ids.used_count(),0);
     }
+}
+
+fn check_data(hdr:&[u8],req_size:usize,total_size:usize)->Result<usize,errcode::RESULT> {
+    assert_eq!(hdr.len(),8);
+    if total_size<=128 {
+        println!("check data callback,data={:?},req_size={},total_size={}",hdr,req_size,total_size);
+    }
+    return Ok(cmp::min(req_size,total_size))
+}
+#[test]
+fn test_ring_buffer() {
+    const CAPACITY:usize=32768;
+    use crate::common::ring_buffer_t;
+ 
+    let mut ring=ring_buffer_t::new(CAPACITY, Some(check_data)).unwrap();
+    let data=[0x41u8;13];
+    let mut out_data=[0;128];
+    let mut round=0;
+    let mut put_len=0;
+    println!("begin test ring,buffer_available={},data_piece={},read_buffer={}",
+        ring.buffer_available(),data.len(),out_data.len());
+    loop {
+        let old_len=ring.len();
+        let r=ring.put_data(data.as_slice());
+        if r!=errcode::RESULT_SUCCESS {
+            break;
+        }
+        round+=1;
+        put_len+=data.len();
+        assert_eq!(old_len+data.len(),ring.len());
+    }
+    assert_eq!(put_len,ring.len());
+    assert_eq!(CAPACITY-put_len,ring.buffer_available());
+    println!("finished put {} bytes data for {} round, ring len={},available={}",
+        data.len(),round,ring.len(),ring.buffer_available());
+    round=0;
+    let mut pull_len=0;
+    loop {
+        let rb=ring.len();
+        match ring.pull_data(128, out_data.as_mut_slice()) {
+            Ok(len)=>{
+                round+=1;
+                pull_len+=len;
+                assert_eq!(len,cmp::min(128,rb));
+            },
+            Err(_e)=>{
+                break;
+            },
+        }
+
+    }
+
+    println!("pull data for {} round,{} bytes for each,pull_len={},ring len={},available={}",round,out_data.len(),
+    pull_len,ring.len(),ring.buffer_available());
+
+    assert_eq!(0,ring.len());
+    assert_eq!(put_len,pull_len);
+
+}
+
+use crate::common::uuid_t;
+#[test]
+fn test_uuid() {
+
+    for i in 1..11 {
+        let id=uuid_t::new();
+        println!("{} round test,uuid value={:0x},string_value={}",i,id.as_u128(),id.to_string());
+    }
+    
 }

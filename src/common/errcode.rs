@@ -15,8 +15,8 @@ pub const ERROR_ALREADY_EXIST: RESULT = 7;
 pub const ERROR_OUTOF_MEM: RESULT = 8; //内存用完
 pub const ERROR_NO_PERMISSION: RESULT = 9; //没有权限
 pub const ERROR_MSG_TOO_LONG: RESULT = 10; //消息、报文太长
-pub const ERROR_ENCODE_MSG: RESULT = 11;
-pub const ERROR_DECODE_MSG: RESULT = 12;
+pub const ERROR_ENCODE_MSG: RESULT = 11; //编码失败
+pub const ERROR_DECODE_MSG: RESULT = 12; //解码失败
 pub const ERROR_COLLISION: RESULT = 13; //数据、逻辑冲突
 pub const ERROR_AUTH_FAILED: RESULT = 14; //认证失败
 pub const ERROR_THRESHOLD_EXCEED: RESULT = 15;
@@ -31,11 +31,13 @@ pub const ERROR_OS_CALL_FAILED: RESULT = 23; //OS调用失败
 pub const ERROR_NO_OP: RESULT = 24; //没有发生实际动作
 pub const ERROR_LINK_BROKEN: RESULT = 25; //链路中断
 
+
 pub const ERROR_BUFFER_TOO_SMALL: RESULT = 26; //缓冲区太小
 pub const ERROR_INIT_FAILED: RESULT = 27; //初始化失败
+pub const ERROR_NO_DATA: RESULT = 28; //初始化失败
 
 pub const ERROR_INVALID_IPADDR: RESULT = 50; //Invalid Ip Addr
-
+pub const ERROR_DEVICE_NOT_EXIST:RESULT=51;
 //I/O类错误
 pub const ERROR_OPEN_FILE: RESULT = 100;
 pub const ERROR_FILE_NOT_FOUND: RESULT = 101;
