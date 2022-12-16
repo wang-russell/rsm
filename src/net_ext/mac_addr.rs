@@ -5,7 +5,8 @@
 use super::*;
 use std::fmt;
 use serde::{Serialize,Deserialize};
-#[derive(Copy, Clone, Eq, PartialEq, Default,Debug,Deserialize,Serialize)]
+#[repr(C)]
+#[derive(Copy, Clone, Eq, PartialEq, Default,Debug,Deserialize,Serialize,Hash)]
 pub struct mac_addr_t {
     pub a: u8,
     pub b: u8,
@@ -44,9 +45,9 @@ impl mac_addr_t {
         return self.to_u64()==0
     }
     pub fn from_u64(addr: u64) -> mac_addr_t {
-        let p = u64::to_be_bytes(addr);
+        let p = addr.to_be_bytes();
 
-        return Self::new(p[0], p[1], p[2], p[3], p[4], p[5]);
+        return Self::new(p[2], p[3], p[4], p[5], p[6], p[7]);
     }
 
     pub fn to_u64(&self) -> u64 {
@@ -54,7 +55,7 @@ impl mac_addr_t {
             return u64::from_be_bytes(p)
     }
     pub fn to_slice(&self)->&[u8] {
-        let p = unsafe { &(&*(&self.a as *const u8 as *const [u8;MAC_ADDR_SIZE]))[..] };
+        let p = unsafe { &*(&self.a as *const u8 as *const [u8;MAC_ADDR_SIZE]) };
         return p;
     }
     pub fn is_broadcast(&self) -> bool {
@@ -66,6 +67,24 @@ impl mac_addr_t {
 
     pub fn as_ptr(&self)->*const u8 {
         std::ptr::addr_of!(self.a)
+    }
+
+    pub fn from_string(mac_str:&String)->Option<Self> {
+        let mac_a:Vec<&str>=mac_str.split(":").collect();
+        if mac_a.len()<6 {
+            return None
+        }
+
+        let mut abytes=[0u8;6];
+
+        for i in 0..6 {
+            abytes[i]=match u8::from_str_radix(mac_a[i], 16) {
+                Ok(v)=>v,
+                Err(_)=>0,
+            }
+        }
+
+        Some(Self::from_array(&abytes))
     }
     #[cfg(windows)]
     pub fn to_string(&self)->String {

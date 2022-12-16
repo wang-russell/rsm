@@ -34,7 +34,16 @@ impl Socket {
 
         return Ok(sock)
     }
+    pub fn set_reuse_addr(&mut self,is_reuse:bool)->errcode::RESULT {
+        let reuse= if is_reuse { 1 } else {0};
+        rawsocket::set_socket_reuse_addr(self.get_raw_fd(), reuse)
+    }
 
+    pub fn set_reuse_port(&mut self,is_reuse:bool)->errcode::RESULT {
+        let reuse= if is_reuse { 1 } else {0};
+        rawsocket::set_socket_reuse_port(self.get_raw_fd(), reuse)
+    }
+    
     pub fn bind(&mut self,addr:&SocketAddr)->errcode::RESULT {
         if self.state!=SOCKET_STATE::SOCK_INIT {
             return errcode::ERROR_INVALID_STATE

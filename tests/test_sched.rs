@@ -142,6 +142,9 @@ impl rsm::Runnable for test_app_t {
        
     }
 
+    fn is_inited(&self)->bool {
+        true
+    }
     fn on_message(&mut self,cid:&rsm::rsm_component_t,msg_id:rsm::rsm_message_id_t,msg:&rsm::rsm_message_t) {
 
         let self_cid=rsm::get_self_cid();

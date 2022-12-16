@@ -102,6 +102,22 @@ pub fn set_socket_sendbuf(socket:RawFdType,buf_size:i32)->i32 {
         libc::SO_SNDBUF,&(buf_size as c_int) as *const _ as *const c_void,std::mem::size_of::<i32>() as libc::socklen_t)
     };
 }
+
+///设置socket reuse addr参数，1=使用，0-不使用
+pub fn set_socket_reuse_addr(socket:RawFdType,is_reuse:i32)->i32 {
+    return unsafe {
+        libc::setsockopt(socket as c_int, libc::SOL_SOCKET,
+        libc::SO_REUSEADDR,&(is_reuse as c_int) as *const _ as *const c_void,std::mem::size_of::<i32>() as libc::socklen_t)
+    };
+}
+
+///设置socketreuse port参数，1=使用，0-不使用
+pub fn set_socket_reuse_port(socket:RawFdType,is_reuse:i32)->i32 {
+    return unsafe {
+        libc::setsockopt(socket as c_int, libc::SOL_SOCKET,
+        libc::SO_REUSEPORT,&(is_reuse as c_int) as *const _ as *const c_void,std::mem::size_of::<i32>() as libc::socklen_t)
+    };
+}
 ///获得一个mio udp_socket的raw socket句柄
 pub fn get_raw_socket(socket:&mio_udpsocket)->RawFdType {
     return socket.as_raw_fd();

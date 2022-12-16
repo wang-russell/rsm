@@ -17,14 +17,14 @@ const MAX_TIMER_COUNT:usize = 192*1024;
 const MAX_TIMER_PER_CAT:usize = 64*1024;
 const INVALID_TIMER_ID:rsm_timer_id_t = TsIdAllocator::INVALID_ID;
 
-const TIMER_CAT_1MS:u8=1;
+const TIMER_CAT_10MS:u8=1;
 const TIMER_CAT_100MS:u8=2;
 const TIMER_CAT_1S:u8=3;
 
 #[derive(Clone,Default)]
 pub struct timer_stats_t {
     total:usize,
-    timer_count_1ms:usize,
+    timer_count_10ms:usize,
     timer_count_100ms:usize,
     timer_count_1s:usize,
 }
@@ -42,7 +42,7 @@ struct timer_desc_t {
 type timer_hash_map = TsHashMap<rsm_timer_id_t,timer_desc_t>;
 static mut gTimerIdAlloc:Option<TsIdAllocator>=None;
 static mut gTimerCatMap:[u8;MAX_TIMER_COUNT+1]=[0;MAX_TIMER_COUNT+1];
-static mut gTimer1ms:Option<timer_hash_map>=None;
+static mut gTimer10ms:Option<timer_hash_map>=None;
 static mut gTimer100ms:Option<timer_hash_map>=None;
 static mut gTimer1s:Option<timer_hash_map>=None;
 
@@ -53,7 +53,7 @@ pub(crate) fn init_timer() {
             return
         }
         gTimerIdAlloc = Some(TsIdAllocator::new(1, MAX_TIMER_COUNT as i32));
-        gTimer1ms = Some(TsHashMap::new(MAX_TIMER_PER_CAT));
+        gTimer10ms = Some(TsHashMap::new(MAX_TIMER_PER_CAT));
         gTimer100ms = Some(TsHashMap::new(MAX_TIMER_PER_CAT));
         gTimer1s = Some(TsHashMap::new(MAX_TIMER_PER_CAT));
     }
@@ -62,9 +62,9 @@ pub(crate) fn init_timer() {
 }
 
 fn get_timer_cb_by_duration(dur_msec:u64)->Option<&'static mut timer_hash_map> {
-    if dur_msec<10 {
-        return unsafe {(&mut gTimer1ms).as_mut()}
-    } else if dur_msec<100{
+    if dur_msec<100 {
+        return unsafe {(&mut gTimer10ms).as_mut()}
+    } else if dur_msec<1000{
         return unsafe {(&mut gTimer100ms).as_mut()}
     }
     return unsafe {(&mut gTimer1s).as_mut()}
@@ -72,7 +72,7 @@ fn get_timer_cb_by_duration(dur_msec:u64)->Option<&'static mut timer_hash_map> {
 
 fn get_timer_cb_by_cat(timer_cat:u8)->Option<&'static mut timer_hash_map> {
     match timer_cat {
-        TIMER_CAT_1MS=> return unsafe {(&mut gTimer1ms).as_mut()},
+        TIMER_CAT_10MS=> return unsafe {(&mut gTimer10ms).as_mut()},
         TIMER_CAT_100MS=> return unsafe {(&mut gTimer100ms).as_mut()},
         TIMER_CAT_1S=> return unsafe {(&mut gTimer1s).as_mut()},
         _=>None, 
@@ -80,16 +80,16 @@ fn get_timer_cb_by_cat(timer_cat:u8)->Option<&'static mut timer_hash_map> {
 }
 
 fn get_timer_cat(dur_msec:u64)->u8 {
-    if dur_msec<10 {
-        return TIMER_CAT_1MS
-    } else if dur_msec<100{
+    if dur_msec<100 {
+        return TIMER_CAT_10MS
+    } else if dur_msec<1000{
         return TIMER_CAT_100MS
     }
     return TIMER_CAT_1S 
 }
 
 fn set_timer_cat_map(id:rsm_timer_id_t,cat:u8)->errcode::RESULT {
-    if cat<TIMER_CAT_1MS || cat>TIMER_CAT_1S || id as usize>MAX_TIMER_COUNT{
+    if cat<TIMER_CAT_10MS || cat>TIMER_CAT_1S || id as usize>MAX_TIMER_COUNT{
         return errcode::ERROR_INVALID_PARAM
     }
     unsafe {
@@ -184,6 +184,7 @@ fn incr_inner_time_stamp() {
         cur_time_stamp=common::get_now_usec64()/1000;
     }
 }
+
 fn get_inner_time_stamp()->u64 {
     unsafe {
         return cur_time_stamp;
@@ -191,21 +192,19 @@ fn get_inner_time_stamp()->u64 {
 }
 
 const TIMER_TASK_INNER:usize = 1;
-const TIMER_TASK_1MS:usize = 2;
+const TIMER_TASK_10MS:usize = 2;
 const TIMER_TASK_100MS:usize = 3;
 const TIMER_TASK_1S:usize = 4;
 fn timer_loop() {
     os_timer::init_os_timer();
-    let _tm = match os_timer::os_timer_t::new(1,TIMER_TASK_INNER,scan_timer_call_back) {
+    let _tm = match os_timer::os_timer_t::new(10,TIMER_TASK_10MS,scan_timer_call_back) {
         None=> {
             println!("set time failed");
             return
         },
         Some(t)=>t,
     };
-    os_timer::os_timer_t::new(1,TIMER_TASK_1MS,scan_timer_call_back);
-    os_timer::os_timer_t::new(1,TIMER_TASK_100MS,scan_timer_call_back);
-    os_timer::os_timer_t::new(1,TIMER_TASK_1S,scan_timer_call_back);
+    
     loop {
        std::thread::sleep(std::time::Duration::from_millis(1000));       
     }
@@ -222,19 +221,27 @@ fn send_timer_msg(cid:&rsm_component_t,tid:rsm_timer_id_t,timer_data:usize) {
 
 ///os timer callback
 fn scan_timer_call_back(_timerId:i32,timer_data:usize) {
+    static mut count:u64=0;
     match timer_data {
-        TIMER_TASK_INNER=>incr_inner_time_stamp(),
-        TIMER_TASK_1MS=> {            
-            scan_timer_1ms();
+        //TIMER_TASK_INNER=>incr_inner_time_stamp(),
+        TIMER_TASK_10MS=> {
+            unsafe { count+=1;};
+            incr_inner_time_stamp();
+            scan_timer_10ms();
+            if unsafe { count % 10==0} {
+                scan_timer_100ms();
+            }
+            if unsafe { count % 100==0 } {
+                scan_timer_1s();
+            }
+            
         },
-        TIMER_TASK_100MS=>scan_timer_100ms(),
-        TIMER_TASK_1S=>scan_timer_1s(),
         _=>(),
     }
 }
-///scan 1ms timer, and send timer message to specific component
-fn scan_timer_1ms() {
-    let tMap = match unsafe { &mut gTimer1ms} {
+///scan 10ms timer, and send timer message to specific component
+fn scan_timer_10ms() {
+    let tMap = match unsafe { &mut gTimer10ms} {
         None=>return,
         Some(m)=>m,
     };
@@ -286,7 +293,7 @@ pub fn get_timer_stats()->timer_stats_t {
             Some(ids)=>ids.used_count() as usize,
         };
 
-        stats.timer_count_1ms = match &gTimer1ms {
+        stats.timer_count_10ms = match &gTimer10ms {
             None=>0,
             Some(tm)=>tm.len(),
         };

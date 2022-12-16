@@ -66,7 +66,9 @@ impl rsm::Runnable for sample_app_t {
         }
         
     }
-
+    fn is_inited(&self)->bool {
+        true
+    }
     fn on_close(&mut self,cid:&rsm::rsm_component_t) {
 
     }

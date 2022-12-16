@@ -12,6 +12,7 @@ use windows_sys::Win32::System::Threading;
 #[cfg(unix)]
 use libc;
 use common::sched;
+use std::{thread,time::Duration};
 
 pub(crate) struct component_registry_t {
     pub(crate) cattr:component_attrs_t,
@@ -25,6 +26,7 @@ static mut gComponentRegistry:Option<TsHashMap<u32,component_registry_t>>=None;
 
 static mut gTaskRegistry:Option<TsHashMap<rsm_component_t,task_t>>=None;
 static mut gTaskIdMap:Option<TsHashMap<sched::os_task_id_t,rsm_component_t>>=None;
+static mut gTaskList:Option<Vec<rsm_component_t>>=None;
 
 ///initialize the scheduler
 pub fn init_scheduler(max_component:usize) {
@@ -32,12 +34,20 @@ pub fn init_scheduler(max_component:usize) {
         gComponentRegistry = Some(TsHashMap::new(max_component));
         gTaskRegistry = Some(TsHashMap::new(max_component*4));
         gTaskIdMap = Some(TsHashMap::new(max_component*4));
+        gTaskList=Some(Vec::new());
     }
     let urls = [RSM_SCHED_TASK_URL.to_string(),RSM_SCHED_COMPONENT_URL.to_string()];
     oam::RegisterOamModule(&urls, process_sched_oam);
 
 }
 
+fn put_into_tasklist(tid:rsm_component_t) {
+    unsafe {
+        if let Some(tl)=&mut gTaskList {
+            tl.push(tid);
+        }
+    }
+}
 fn register_task(attrs:&component_attrs_t,callback:rsm_new_task)->errcode::RESULT {
     let ptMap = match unsafe { &mut gTaskRegistry } {
         None=>return errcode::ERROR_NOT_INITIALIZED,
@@ -47,8 +57,10 @@ fn register_task(attrs:&component_attrs_t,callback:rsm_new_task)->errcode::RESUL
     for i in 0..attrs.inst_num {
         let tid = rsm_component_t::new(attrs.cid,1,i+1);
         let cb_inst = (callback)(&tid);
-        let task = task_t::new(&tid, attrs.qlen, attrs.priority,cb_inst);
-        ptMap.insert(tid,task);
+        let task = task_t::new(&tid, attrs.need_init_ack,attrs.qlen, attrs.priority,cb_inst);
+        if ptMap.insert(tid.clone(),task)==errcode::RESULT_SUCCESS {
+            put_into_tasklist(tid);
+        }
     }
     errcode::RESULT_SUCCESS
 }
@@ -81,12 +93,31 @@ pub fn run() {
         None=>return,
         Some(e)=>e,
     };
+    let tl = match unsafe {&gTaskList} {
+        None=>return,
+        Some(l)=>l,
+    };
 
-    for (t,_) in tEntries.iter() {
-        println!("Spawn a task,id={},inst={}",t.cid,t.inst_id);
-        std::thread::spawn(|| schedule_task(t.clone()));
+    let mut ts=Vec::new();
+
+    for t in tl {
+        if let Some(task)=tEntries.get(t) {
+            ts.push((t,task.clone()));
+        }
     }
-    tEntries.end_iter();
+    /*for (t,task) in tEntries.iter() {
+        //println!("Spawn a task,id={},inst={}",t.cid,t.inst_id);
+        ts.push((t,task.clone()));
+    }
+    tEntries.end_iter(); */
+    for t in &ts {
+        std::thread::spawn(|| schedule_task(t.0.clone()));
+        while !t.1.is_init_completed() {
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+
 }
 
 /// schedule task for each task
@@ -102,7 +133,7 @@ fn schedule_task(task_id:rsm_component_t) {
         },
         Some(v)=>v,
     };
-    println!("Running a task,id={},inst={}",task_id.cid,task_id.inst_id);
+    println!("[rsm_sched]Running a task,id={},inst={}",task_id.cid,task_id.inst_id);
     let os_tid = sched::get_self_os_task_id();
     if let Some(tm) = unsafe { & mut gTaskIdMap} {
         tm.insert(os_tid,task_id.clone());

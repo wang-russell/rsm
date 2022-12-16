@@ -49,6 +49,9 @@ impl TsIdAllocator {
     }
     ///释放一个申请的ID
     pub fn release_id(&mut self, id: i32) -> errcode::RESULT {
+        if id>=self.cap {
+            return errcode::ERROR_OUTOF_SCOPE
+        }
         self.lock.lock();
         let idx = id - self.start;
         let res = match self.used.is_bit_set(idx) {
@@ -63,6 +66,35 @@ impl TsIdAllocator {
         self.lock.unlock();
         return res
 
+    }
+
+    pub fn reserve_id(&mut self,id:i32)->errcode::RESULT {
+        if id>=self.cap {
+            return errcode::ERROR_OUTOF_SCOPE
+        }        
+        let idx = id - self.start;
+        self.lock.lock();
+        
+        let res = match self.used.is_bit_set(idx) {
+            true => errcode::ERROR_ALREADY_EXIST,
+            false => {
+                let mut v=usize::MAX;
+                for r in 0..self.allocator.len() {
+                    if self.allocator[r]==id {
+                        v=r;
+                    }
+                }
+
+                if v!=usize::MAX {
+                    self.allocator.remove(v);
+                }
+                self.used.set_bitmap(idx);
+                errcode::RESULT_SUCCESS
+            },
+        };
+
+        self.lock.unlock();
+        return res       
     }
 
     pub fn capacity(&self) -> i32 {

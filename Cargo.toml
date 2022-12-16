@@ -1,6 +1,6 @@
 [package]
 name = "rust-rsm"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 authors = ["Russell Wang <wang_russell@hotmail.com>"]
 license = "Apache-2.0"

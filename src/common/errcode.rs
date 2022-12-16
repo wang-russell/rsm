@@ -7,7 +7,7 @@ pub type RESULT = i32;
 pub const RESULT_SUCCESS: RESULT = 0;
 pub const ERROR_COMMON: RESULT = 1;
 pub const ERROR_NULL_POINTER: RESULT = 2;
-pub const ERROR_INVALID_INDEX: RESULT = 3;
+pub const ERROR_INVALID_INDEX: RESULT = 3; //下标越界
 pub const ERROR_INVALID_PARAM: RESULT = 4;
 pub const ERROR_OUTOF_SCOPE: RESULT = 5;
 pub const ERROR_NOT_FOUND: RESULT = 6;
@@ -19,14 +19,14 @@ pub const ERROR_ENCODE_MSG: RESULT = 11; //编码失败
 pub const ERROR_DECODE_MSG: RESULT = 12; //解码失败
 pub const ERROR_COLLISION: RESULT = 13; //数据、逻辑冲突
 pub const ERROR_AUTH_FAILED: RESULT = 14; //认证失败
-pub const ERROR_THRESHOLD_EXCEED: RESULT = 15;
-pub const ERROR_TIME_OUT: RESULT = 16;
+pub const ERROR_THRESHOLD_EXCEED: RESULT = 15; //超过门限
+pub const ERROR_TIME_OUT: RESULT = 16; //超时
 pub const ERROR_NOT_INITIALIZED: RESULT = 17; //没有初始化
 pub const ERROR_INVALID_MSG: RESULT = 18;
-pub const ERROR_INVALID_STATE: RESULT = 19;
+pub const ERROR_INVALID_STATE: RESULT = 19; //无效状态
 pub const ERROR_LOCK_FAILED: RESULT = 20;
 pub const ERROR_MSG_TOO_SHORT: RESULT = 21;
-pub const ERROR_NOT_SUPPORT: RESULT = 22;
+pub const ERROR_NOT_SUPPORT: RESULT = 22; //不支持的功能
 pub const ERROR_OS_CALL_FAILED: RESULT = 23; //OS调用失败
 pub const ERROR_NO_OP: RESULT = 24; //没有发生实际动作
 pub const ERROR_LINK_BROKEN: RESULT = 25; //链路中断
@@ -34,10 +34,11 @@ pub const ERROR_LINK_BROKEN: RESULT = 25; //链路中断
 
 pub const ERROR_BUFFER_TOO_SMALL: RESULT = 26; //缓冲区太小
 pub const ERROR_INIT_FAILED: RESULT = 27; //初始化失败
-pub const ERROR_NO_DATA: RESULT = 28; //初始化失败
+pub const ERROR_NO_DATA: RESULT = 28; //没有数据
 
 pub const ERROR_INVALID_IPADDR: RESULT = 50; //Invalid Ip Addr
-pub const ERROR_DEVICE_NOT_EXIST:RESULT=51;
+pub const ERROR_INVALID_MAC_ADDR: RESULT = 51;
+pub const ERROR_DEVICE_NOT_EXIST:RESULT=52;
 //I/O类错误
 pub const ERROR_OPEN_FILE: RESULT = 100;
 pub const ERROR_FILE_NOT_FOUND: RESULT = 101;
@@ -46,6 +47,9 @@ pub const ERROR_SEND_MSG: RESULT = 103;
 pub const ERROR_RECV_MSG: RESULT = 104;
 pub const ERROR_BIND_SOCKET: RESULT = 105;
 pub const ERROR_CONNECTION: RESULT = 106;
+pub const ERROR_RPC_FAILED: RESULT = 107;
+pub const ERROR_FILE_EXISTS: RESULT = 108;
+pub const ERROR_WRITE_FILE_FAILED: RESULT = 109;
 //应用特定错误
 
 //HTTP协议常见错误

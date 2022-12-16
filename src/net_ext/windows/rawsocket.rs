@@ -176,6 +176,13 @@ pub fn set_socket_sendbuf(socket:RawFdType,buf_size:i32)->i32 {
     
 }
 
+///设置socket reuse addr参数，1=使用，0-不使用
+pub fn set_socket_reuse_addr(socket:RawFdType,is_reuse:i32)->i32 {
+        -1
+}
+pub fn set_socket_reuse_port(socket:RawFdType,is_reuse:i32)->i32 {
+    -1
+}
 //对Windows/Linux原生网络接口的封装
 //从而支持原生Socket接口的跨平台
 #[cfg(windows)]

@@ -25,6 +25,7 @@ impl TcpListener {
             None=>return Err(errcode::ERROR_INIT_FAILED),
             Some(s)=>s,
         };
+        sock.set_reuse_addr(true);
         let ret = sock.bind(local_addr);
         if ret!=errcode::RESULT_SUCCESS {
             socketpool::close_socket(sock_id);

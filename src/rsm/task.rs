@@ -24,6 +24,7 @@ pub(crate) struct task_stats_t {
 pub(crate) struct task_t{
     tid:rsm_component_t,
     os_tid:sched::os_task_id_t,
+    need_init_ack:bool,
     recv_q:Option<AtomicDequeue<rsm_message_t>>,
     priority:E_RSM_TASK_PRIORITY,
     stats:task_stats_t,
@@ -33,9 +34,10 @@ pub(crate) struct task_t{
 }
 
 impl task_t {
-    pub(crate)  fn new(tid:&rsm_component_t,q_len:usize,prio:E_RSM_TASK_PRIORITY,task_obj:&'static mut dyn Runnable)->Self {
+    pub(crate)  fn new(tid:&rsm_component_t,need_init_ack:bool,q_len:usize,prio:E_RSM_TASK_PRIORITY,task_obj:&'static mut dyn Runnable)->Self {
         return Self {
             tid:tid.clone(),
+            need_init_ack:need_init_ack,
             os_tid:0,
             recv_q:Some(AtomicDequeue::new(q_len)),
             priority:prio,
@@ -49,6 +51,9 @@ impl task_t {
    ///get self component id, get None if not under the rsm thread context
     pub(crate) fn get_self_cid(&self)->Option<&rsm_component_t> {
         Some(&self.tid)
+    }
+    pub(crate) fn is_init_completed(&self)->bool {
+        !self.need_init_ack || self.task_obj.is_inited()
     }
 
     pub(crate)  fn send_asyn_msg(&mut self,msg:rsm_message_t)->errcode::RESULT {

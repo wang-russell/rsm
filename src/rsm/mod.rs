@@ -148,6 +148,7 @@ pub const RSM_MAX_QUEUE_LEN:usize = 16384;
 ///allowed max message length
 pub const RSM_MAX_MESSAGE_LEN:usize = 64000;
 
+pub const RSM_INVALID_TIMER_ID:i32=-1;
 /// describe the task schedule priority, the REALTIME Priority is mapped to Linux/Windows Realtime priority
 #[derive(Copy,Clone,PartialEq,Debug,Eq,Serialize)]
 pub enum E_RSM_TASK_PRIORITY {
@@ -215,7 +216,7 @@ pub struct rsm_socket_event_t {
     
 }
 ///Task create callback function, which must return a valid object reference implement **Runnale** trait
-type rsm_new_task=fn(cid:&rsm_component_t)->&'static mut dyn Runnable;
+pub type rsm_new_task=fn(cid:&rsm_component_t)->&'static mut dyn Runnable;
 ///Component must implement the Runnable Trait
 pub trait Runnable {
     ///task init, called first when the task instance is created
@@ -229,6 +230,8 @@ pub trait Runnable {
 
     ///an ordinary message received, the app should call msg.decode method to get original data structure
     fn on_message(&mut self,cid:&rsm_component_t,msg_id:rsm_message_id_t,msg:&rsm_message_t);
+    //return true, if component has been initialized
+    fn is_inited(&self)->bool;
     ///task has been destroyed, reserved for future use
     fn on_close(&mut self,cid:&rsm_component_t);
 }

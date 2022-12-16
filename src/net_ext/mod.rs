@@ -65,23 +65,23 @@ pub const AF_INET:u16=2;
 pub const AF_INET6:u16=23;
 
 pub mod EthernetTypes {
-    pub const Etherhet_Ipv4: u16 = 0x0800;
-    pub const Etherhet_ARP: u16 = 0x0806;
+    pub const Ethernet_Ipv4: u16 = 0x0800;
+    pub const Ethernet_ARP: u16 = 0x0806;
     //Reverse Arp
-    pub const Etherhet_RARP: u16 = 0x8035;
+    pub const Ethernet_RARP: u16 = 0x8035;
 
-    pub const Etherhet_Ipv6: u16 = 0x86dd;
-    pub const Etherhet_Vlan: u16 = 0x8100;
-    pub const Etherhet_SVlan: u16 = 0x88a8;
+    pub const Ethernet_Ipv6: u16 = 0x86dd;
+    pub const Ethernet_Vlan: u16 = 0x8100;
+    pub const Ethernet_SVlan: u16 = 0x88a8;
 
-    pub const Etherhet_STP: u16 = 0x8181;
-    pub const Etherhet_LLDP: u16 = 0x88cc;
+    pub const Ethernet_STP: u16 = 0x8181;
+    pub const Ethernet_LLDP: u16 = 0x88cc;
 
-    pub const Etherhet_MPLS: u16 = 0x8847;
-    pub const Etherhet_MPLS_USL: u16 = 0x8848;
+    pub const Ethernet_MPLS: u16 = 0x8847;
+    pub const Ethernet_MPLS_USL: u16 = 0x8848;
 
-    pub const Etherhet_PPPoE_Discovery: u16 = 0x8863;
-    pub const Etherhet_PPPoE_Session: u16 = 0x8864;
+    pub const Ethernet_PPPoE_Discovery: u16 = 0x8863;
+    pub const Ethernet_PPPoE_Session: u16 = 0x8864;
 }
 
 pub const IPV4_ADDR_LEN:usize = 4;
@@ -242,6 +242,38 @@ pub fn ipv6_to_u64(ipv6: &Ipv6Addr) -> (u64, u64) {
     let h64 = (v128 >> 64) as u64;
     let l64 = (v128 & 0xFFFFFFFFFFFFFFFF) as u64;
     return (l64, h64);
+}
+
+pub fn get_ip_address_family(ip:&IpAddr)->u16 {
+    if ip.is_ipv6() {
+        AF_INET6
+    } else {
+        AF_INET
+    }
+}
+///calculate ip pool size
+pub fn ip_pool_size(ip_start:&IpAddr,ip_end:&IpAddr)->u128 {
+    match (ip_start,ip_end) {
+        (IpAddr::V4(ip1),IpAddr::V4(ip2))=> {
+            let v1=u32::from_be_bytes(ip1.octets());
+            let v2 = u32::from_be_bytes(ip2.octets());
+            if v1>v2 {
+                0
+            } else {
+                (v2-v1+1) as u128
+            }
+        },
+        (IpAddr::V6(ip1),IpAddr::V6(ip2))=> {
+            let v1=u128::from_be_bytes(ip1.octets());
+            let v2 = u128::from_be_bytes(ip2.octets());
+            if v1>v2 {
+                0
+            } else {
+                v2-v1+1
+            }
+        },
+        _=>return 0,
+    }
 }
 
 #[cfg(unix)]

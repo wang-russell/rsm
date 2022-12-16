@@ -50,14 +50,14 @@ impl Arp {
         );
         let ether_type: u16 = ((pkt[12] as u16) << 8) + pkt[13] as u16;
         let mut payload_idx = 14; 
-        if ether_type == EthernetTypes::Etherhet_Vlan {
+        if ether_type == EthernetTypes::Ethernet_Vlan {
             arp_pkt.vlan_id =  ((pkt[14] as u16) << 8) + pkt[15] as u16;
             arp_pkt.ethernet_type = ((pkt[16] as u16) << 8) + pkt[17] as u16;
             payload_idx+=4;
         } else {
             arp_pkt.ethernet_type = ether_type;
         }
-        if arp_pkt.ethernet_type!=EthernetTypes::Etherhet_ARP {
+        if arp_pkt.ethernet_type!=EthernetTypes::Ethernet_ARP {
             return None;
         }
         Self::parse_arp(&mut arp_pkt, &pkt[payload_idx..]);
@@ -68,10 +68,10 @@ impl Arp {
         return Arp {
             dst_mac:dst_mac.clone(),
            src_mac:src_mac.clone(),
-           ethernet_type:EthernetTypes::Etherhet_ARP,
+           ethernet_type:EthernetTypes::Ethernet_ARP,
            vlan_id:0,
             hardware_type:ArpHardwareTypes::HARDWARE_ETHERNET,
-            protocol_type:EthernetTypes::Etherhet_Ipv4,
+            protocol_type:EthernetTypes::Ethernet_Ipv4,
             hw_addr_len:MAC_ADDR_SIZE as u8,
             proto_addr_len:IPV4_ADDR_LEN as u8,
             operation:arp_op,
@@ -110,7 +110,7 @@ impl Arp {
         pVec.extend_from_slice(&self.dst_mac.to_slice());
         pVec.extend_from_slice(&self.src_mac.to_slice());
         if self.vlan_id>0 {
-            pVec.extend_from_slice(&EthernetTypes::Etherhet_Vlan.to_be_bytes()[..]);
+            pVec.extend_from_slice(&EthernetTypes::Ethernet_Vlan.to_be_bytes()[..]);
             pVec.extend_from_slice(&self.vlan_id.to_be_bytes()[..]);
         }
         pVec.extend_from_slice(&self.ethernet_type.to_be_bytes()[..]);

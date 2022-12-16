@@ -13,6 +13,7 @@ use crate::common::errcode;
 pub struct ethernet_packet_info_t {
     l3_offset: u16, //l3 header offset
     l4_offset: u16, //l4 header offset
+    payload_offset:u16,//user payload offset
     total_len:u16,
     pub dst_mac: mac_addr_t,
     pub src_mac: mac_addr_t,
@@ -50,10 +51,18 @@ impl ethernet_packet_info_t {
             IpProtos::Ip_Proto_TCP => {
                 info.tp_src = ((*pkt.get_unchecked(0) as u16) << 8) + *pkt.get_unchecked(1) as u16;
                 info.tp_dst = ((*pkt.get_unchecked(2) as u16) << 8) + *pkt.get_unchecked(3) as u16;
+                let tcp_hdr_len=((pkt[12] & 0xF0)>>4)*4;
+                info.payload_offset=info.l4_offset+tcp_hdr_len as u16;
             }
             IpProtos::Ip_Proto_UDP => {
                 info.tp_src = ((*pkt.get_unchecked(0) as u16) << 8) + *pkt.get_unchecked(1) as u16;
                 info.tp_dst = ((*pkt.get_unchecked(2) as u16) << 8) + *pkt.get_unchecked(3) as u16;
+                info.payload_offset=info.l4_offset+8;
+            },
+            IpProtos::Ip_Proto_SCTP => {
+                info.tp_src = ((*pkt.get_unchecked(0) as u16) << 8) + *pkt.get_unchecked(1) as u16;
+                info.tp_dst = ((*pkt.get_unchecked(2) as u16) << 8) + *pkt.get_unchecked(3) as u16;
+                info.payload_offset=info.l4_offset+12;
             }
             _ => (),
         }
@@ -88,6 +97,7 @@ impl ethernet_packet_info_t {
             *ipv4.get_unchecked(cur_idx + 7),
         ]);
         info.l4_offset = info.l3_offset+info.ip_hdr_len;
+        info.payload_offset=info.l4_offset;
         if ipv4.len()>=info.ip_hdr_len as usize + UDP_HDR_SIZE {
             Self::parse_transport(&ipv4[info.ip_hdr_len as usize..], info.ip_proto, info);
         }
@@ -114,15 +124,10 @@ impl ethernet_packet_info_t {
         ipaddr.copy_from_slice(&ipv6[24..40]);
         info.dst_ip = IpAddr::from(ipaddr);
         info.l4_offset = info.l3_offset+info.ip_hdr_len;
+        info.payload_offset=info.l4_offset;
         Self::parse_transport(&ipv6[info.ip_hdr_len as usize..], info.ip_proto, info);
     }
-    pub fn to_string(&self)->String {
-        format!("total_len={},ether_type={:#x},src_mac={},dst_mac={},vlan={},
-        ip_hdr_len={},src_ip={},dst_ip={},ip_proto={},ip_payload_len={},tp_src={},tp_dst={}",
-        self.total_len,self.ether_type,self.src_mac,self.dst_mac,self.vlans[0],
-        self.ip_hdr_len,self.src_ip, self.dst_ip,self.ip_proto,self.ip_payload_len,
-        self.tp_src,self.tp_dst)
-    }
+
     fn parse_arp(arp: &[u8], info: &mut ethernet_packet_info_t) {
         if arp.len()<ARP_PACKET_SIZE {
             return;
@@ -149,7 +154,7 @@ impl ethernet_packet_info_t {
         let mut cur_ptr: usize = ETHERNET_HDR_SIZE;
         unsafe {
         pkt_info.ether_type = match ether_type {
-            EthernetTypes::Etherhet_Vlan => {
+            EthernetTypes::Ethernet_Vlan => {
                 if pkt_len<ETHERNET_HDR_SIZE+4 {
                     return Err(errcode::ERROR_INVALID_MSG);
                 }
@@ -158,7 +163,7 @@ impl ethernet_packet_info_t {
                 cur_ptr += 4;
                 ((*packet.get_unchecked(cur_ptr - 2) as u16) << 8) + *packet.get_unchecked(cur_ptr - 1) as u16
             }
-            EthernetTypes::Etherhet_SVlan => {
+            EthernetTypes::Ethernet_SVlan => {
                 if pkt_len<ETHERNET_HDR_SIZE+4*2 {
                     return Err(errcode::ERROR_INVALID_MSG);
                 }
@@ -171,19 +176,46 @@ impl ethernet_packet_info_t {
             _ => ether_type,
         };
         pkt_info.l3_offset = cur_ptr as u16;
+        pkt_info.payload_offset=pkt_info.l3_offset;
         if cur_ptr>=pkt_len {
             return Err(errcode::ERROR_INVALID_MSG);
         }
     }
         match pkt_info.ether_type {
-            EthernetTypes::Etherhet_Ipv4 => Self::parse_ipv4(&packet[cur_ptr..], &mut pkt_info),
-            EthernetTypes::Etherhet_Ipv6 => Self::parse_ipv6(&packet[cur_ptr..], &mut pkt_info),
-            EthernetTypes::Etherhet_ARP => Self::parse_arp(&packet[cur_ptr..], &mut pkt_info),
+            EthernetTypes::Ethernet_Ipv4 => Self::parse_ipv4(&packet[cur_ptr..], &mut pkt_info),
+            EthernetTypes::Ethernet_Ipv6 => Self::parse_ipv6(&packet[cur_ptr..], &mut pkt_info),
+            EthernetTypes::Ethernet_ARP => Self::parse_arp(&packet[cur_ptr..], &mut pkt_info),
             _ => (),
         }
 
         return Ok(pkt_info);
     }
+
+    pub fn get_payload_offset(&self)->Result<u16,errcode::RESULT> {
+        if self.payload_offset>0 {
+            return Ok(self.payload_offset)
+        }
+        Err(errcode::ERROR_INVALID_MSG)
+    }
+    pub fn get_l3_hdr_offset(&self)->Result<u16,errcode::RESULT> {
+        return Ok(self.l3_offset)
+    }
+
+    pub fn get_l4_hdr_offset(&self)->Result<u16,errcode::RESULT> {
+        if self.ether_type==EthernetTypes::Ethernet_Ipv4 || self.ether_type==EthernetTypes::Ethernet_Ipv6 {
+            return Ok(self.l4_offset)
+        }
+        Err(errcode::ERROR_INVALID_MSG)
+    }
+
+    pub fn to_string(&self)->String {
+        format!("total_len={},ether_type={:#x},src_mac={},dst_mac={},vlan={},
+        ip_hdr_len={},src_ip={},dst_ip={},ip_proto={},ip_payload_len={},tp_src={},tp_dst={}",
+        self.total_len,self.ether_type,self.src_mac,self.dst_mac,self.vlans[0],
+        self.ip_hdr_len,self.src_ip, self.dst_ip,self.ip_proto,self.ip_payload_len,
+        self.tp_src,self.tp_dst)
+    }
+
 }
 
 impl fmt::Display for ethernet_packet_info_t {
